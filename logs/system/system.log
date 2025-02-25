@@ -22,3 +22,76 @@
 2025-02-25 23:26:37,215 - root - ERROR - Failed to connect to IBKR
 2025-02-25 23:26:37,215 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
 2025-02-25 23:26:39,232 - root - INFO - Connection test completed
+2025-02-25 23:42:29,573 - root - INFO - Starting IBKR Trading Bot
+2025-02-25 23:42:29,574 - root - INFO - Paper trading mode enabled
+2025-02-25 23:42:29,574 - root - INFO - Testing connection to IBKR
+2025-02-25 23:42:29,574 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=1
+2025-02-25 23:42:29,574 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-25 23:42:29,578 - ibapi.client - INFO - sent startApi
+2025-02-25 23:42:29,579 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:42:29,579 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-25 23:42:29,579 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:42:29,580 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:42:29,580 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:42:29,582 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:42:29,584 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:42:29,584 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:42:29,585 - ibapi.client - INFO - disconnecting
+2025-02-25 23:42:29,585 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-25 23:42:29,585 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-25 23:42:29,586 - src.connectors.ibkr.client - ERROR - Error in IBKR client thread: EWrapper.error() takes 4 positional arguments but 5 were given
+2025-02-25 23:42:31,581 - root - ERROR - Failed to connect to IBKR
+2025-02-25 23:42:31,582 - root - INFO - Waiting for responses...
+2025-02-25 23:42:36,583 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-25 23:42:36,584 - root - INFO - Connection test completed
+2025-02-25 23:51:43,718 - root - INFO - Starting IBKR Trading Bot
+2025-02-25 23:51:43,719 - root - INFO - Paper trading mode enabled
+2025-02-25 23:51:43,719 - root - INFO - Testing connection to IBKR
+2025-02-25 23:51:43,719 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=1
+2025-02-25 23:51:43,719 - root - INFO - Connecting to 127.0.0.1:7497 with client ID 1
+2025-02-25 23:51:43,719 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-25 23:51:43,724 - ibapi.client - INFO - sent startApi
+2025-02-25 23:51:43,725 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:51:43,725 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-25 23:51:43,725 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:51:43,725 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:51:43,726 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:51:43,727 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:51:43,728 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:51:43,729 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:51:43,729 - ibapi.client - INFO - disconnecting
+2025-02-25 23:51:43,729 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-25 23:51:43,730 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-25 23:51:43,730 - src.connectors.ibkr.client - ERROR - Error in IBKR client thread: EWrapper.error() takes 4 positional arguments but 5 were given
+2025-02-25 23:51:46,726 - root - ERROR - Failed to connect to IBKR
+2025-02-25 23:51:46,727 - root - INFO - Connection test complete. Disconnecting...
+2025-02-25 23:51:47,728 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-25 23:51:47,728 - root - INFO - Connection test completed
+2025-02-25 23:55:02,797 - root - INFO - Starting IBKR Trading Bot
+2025-02-25 23:55:02,798 - root - INFO - Paper trading mode enabled
+2025-02-25 23:55:02,798 - root - INFO - Testing connection to IBKR
+2025-02-25 23:55:02,798 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=1
+2025-02-25 23:55:02,798 - root - INFO - Connecting to 127.0.0.1:7497 with client ID 1
+2025-02-25 23:55:02,799 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-25 23:55:02,803 - ibapi.client - INFO - sent startApi
+2025-02-25 23:55:02,803 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:55:02,803 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-25 23:55:02,804 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:55:02,804 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:55:02,804 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:55:02,806 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:55:02,807 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:55:02,808 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:55:02,808 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-25 23:55:02,808 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: HMDS data farm connection is inactive but should be available upon demand.ushmds (code: 2107)
+2025-02-25 23:55:02,808 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-25 23:55:05,805 - root - INFO - Successfully connected to IBKR!
+2025-02-25 23:55:05,806 - root - INFO - Client version: 157
+2025-02-25 23:55:05,807 - root - INFO - Server time: b'20250225 23:55:02 CET'
+2025-02-25 23:55:05,807 - root - INFO - Connection test successful
+2025-02-25 23:55:05,808 - root - INFO - Disconnecting...
+2025-02-25 23:55:05,809 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-25 23:55:05,809 - ibapi.client - INFO - disconnecting
+2025-02-25 23:55:05,811 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-25 23:55:05,812 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-25 23:55:05,938 - root - INFO - Connection test completed

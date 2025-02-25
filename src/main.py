@@ -133,29 +133,28 @@ def main():
         client = IBKRClient(host=host, port=port, client_id=client_id, auto_reconnect=False)
         
         try:
+            # Use a simple connection test without account data request
+            logger.info(f"Connecting to {host}:{port} with client ID {client_id}")
             client.connect_and_run()
-            time.sleep(2)  # Wait a bit for connection messages
+            
+            # Wait a moment to establish connection
+            time.sleep(3)
             
             if client.connected:
-                logger.info("Successfully connected to IBKR")
-                # Get account information
-                req_id = client.request_account_summary()
-                time.sleep(3)  # Wait for data
-                
-                account_summary = client.get_account_summary_result(req_id)
-                for item in account_summary:
-                    logger.info(f"Account {item['account']}: {item['tag']} = {item['value']} {item['currency']}")
+                logger.info("Successfully connected to IBKR!")
+                logger.info(f"Client version: {client.serverVersion()}")
+                logger.info(f"Server time: {client.twsConnectionTime()}")
+                logger.info("Connection test successful")
             else:
                 logger.error("Failed to connect to IBKR")
-            
-            # Keep connection open a bit longer to get full responses
-            logger.info("Waiting for responses...")
-            time.sleep(5)
-            
+                
+            # Gracefully disconnect
+            logger.info("Disconnecting...")
             client.disconnect_and_stop()
+            
         except Exception as e:
-            logger.error(f"Error testing connection: {e}")
-        
+            logger.error(f"Error testing connection: {e}", exc_info=True)
+            
         logger.info("Connection test completed")
         return
     

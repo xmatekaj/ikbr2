@@ -4,9 +4,10 @@ This module handles authentication, connection management, and serves as the bas
 for all IBKR API interactions.
 """
 import logging
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict, List, Tuple, Any, Union
 import time
 import threading
+import inspect
 
 # Import IB API
 from ibapi.client import EClient
@@ -18,10 +19,26 @@ from ibapi.execution import Execution
 # Set up logger
 logger = logging.getLogger(__name__)
 
-class IBKRClient(EWrapper, EClient):
+class IBKRWrapper(EWrapper):
+    """Custom wrapper class to handle API version differences."""
+    
+    def error(self, reqId: int, errorCode: int, errorString: str):
+        """
+        Error handling with correct signature for older API versions.
+        This explicitly defines the method with 3 parameters plus self.
+        """
+        # Some error codes indicate normal events rather than actual errors
+        normal_errors = {2104, 2106, 2158}  # Connection successful, connection broken, etc.
+        
+        if errorCode in normal_errors:
+            logger.info(f"IBKR message: {errorString} (code: {errorCode})")
+        else:
+            logger.error(f"IBKR error for request {reqId}: {errorString} (code: {errorCode})")
+
+class IBKRClient(IBKRWrapper, EClient):
     """
     Primary client for connecting to Interactive Brokers.
-    Combines the EWrapper and EClient functionality from the IB API.
+    Combines the custom wrapper and EClient functionality from the IB API.
     """
     
     def __init__(self, 
@@ -40,6 +57,7 @@ class IBKRClient(EWrapper, EClient):
             max_wait_time: Maximum time to wait for responses in seconds
             auto_reconnect: Whether to attempt reconnection if disconnected
         """
+        IBKRWrapper.__init__(self)
         EClient.__init__(self, self)
         
         self.host = host
@@ -140,17 +158,12 @@ class IBKRClient(EWrapper, EClient):
             time.sleep(5)  # Wait before reconnecting
             self.connect_and_run()
     
-    def error(self, req_id: int, error_code: int, error_string: str, advanced_order_reject_json="") -> None:
-        """Called when an error occurs."""
-        super().error(req_id, error_code, error_string, advanced_order_reject_json)
-        
-        # Some error codes indicate normal events rather than actual errors
-        normal_errors = {2104, 2106, 2158}  # Connection successful, connection broken, etc.
-        
-        if error_code in normal_errors:
-            logger.info(f"IBKR message: {error_string} (code: {error_code})")
-        else:
-            logger.error(f"IBKR error for request {req_id}: {error_string} (code: {error_code})")
+    def error(self, reqId: int, errorCode: int, errorString: str):
+        """
+        Error handling method with correct signature for older API versions.
+        """
+        # Call the parent implementation
+        super().error(reqId, errorCode, errorString)
     
     def nextValidId(self, order_id: int) -> None:
         """Called by TWS/IB Gateway with the next valid order ID."""
@@ -234,10 +247,16 @@ class IBKRClient(EWrapper, EClient):
         self.responses[req_id] = []
         self.response_events[req_id] = threading.Event()
         
-        # Request account summary
-        logger.info("Requesting account summary")
-        self.reqAccountSummary(req_id, "All", "TotalCashValue,NetLiquidation,AvailableFunds")
-        
+        try:
+            # Request account summary
+            logger.info("Requesting account summary")
+            self.reqAccountSummary(req_id, "All", "TotalCashValue,NetLiquidation,AvailableFunds")
+        except Exception as e:
+            logger.error(f"Error requesting account summary: {e}")
+            self.responses.pop(req_id, None)
+            self.response_events.pop(req_id, None)
+            raise
+            
         return req_id
     
     def accountSummary(self, req_id: int, account: str, tag: str, value: str, currency: str) -> None:
