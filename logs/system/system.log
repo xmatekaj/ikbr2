@@ -1,0 +1,24 @@
+2025-02-25 02:56:49,680 - root - INFO - This is an info message from the root logger
+2025-02-25 02:56:49,680 - root - WARNING - This is a warning message from the root logger
+2025-02-25 02:56:49,681 - trades - INFO - This is an info message from the trade logger
+2025-02-25 23:26:35,196 - root - INFO - Starting IBKR Trading Bot
+2025-02-25 23:26:35,196 - root - INFO - Paper trading mode enabled
+2025-02-25 23:26:35,196 - root - INFO - Testing connection to IBKR
+2025-02-25 23:26:35,196 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=1
+2025-02-25 23:26:35,196 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-25 23:26:35,201 - ibapi.client - INFO - sent startApi
+2025-02-25 23:26:35,211 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:26:35,212 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-25 23:26:35,212 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:26:35,213 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:26:35,214 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:26:35,217 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:26:35,219 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:26:35,220 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:26:35,220 - ibapi.client - INFO - disconnecting
+2025-02-25 23:26:35,221 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-25 23:26:35,221 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-25 23:26:35,221 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-25 23:26:37,215 - root - ERROR - Failed to connect to IBKR
+2025-02-25 23:26:37,215 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-25 23:26:39,232 - root - INFO - Connection test completed
