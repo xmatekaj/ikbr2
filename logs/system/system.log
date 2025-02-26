@@ -95,3 +95,120 @@
 2025-02-25 23:55:05,811 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
 2025-02-25 23:55:05,812 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
 2025-02-25 23:55:05,938 - root - INFO - Connection test completed
+2025-02-25 23:55:45,580 - root - INFO - Starting IBKR Trading Bot
+2025-02-25 23:55:45,580 - root - INFO - Paper trading mode enabled
+2025-02-25 23:55:45,580 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=1
+2025-02-25 23:55:45,581 - src.connectors.ibkr.client - INFO - IBKR Client initialized with host=127.0.0.1, port=7497, client_id=2
+2025-02-25 23:55:45,581 - root - INFO - Connecting to IBKR at 127.0.0.1:7497
+2025-02-25 23:55:45,581 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-25 23:55:45,585 - ibapi.client - INFO - sent startApi
+2025-02-25 23:55:45,585 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:55:45,585 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-25 23:55:45,585 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:55:45,586 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:55:45,586 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:55:45,587 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 2
+2025-02-25 23:55:45,590 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:55:45,593 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:55:45,593 - ibapi.client - INFO - sent startApi
+2025-02-25 23:55:45,593 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:55:45,594 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-25 23:55:45,594 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-25 23:55:45,594 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x002\x00\x00'
+2025-02-25 23:55:45,594 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: HMDS data farm connection is inactive but should be available upon demand.ushmds (code: 2107)
+2025-02-25 23:55:45,594 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-25 23:55:45,595 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-25 23:55:45,595 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-25 23:55:45,595 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-25 23:55:45,595 - root - INFO - Successfully connected to IBKR
+2025-02-25 23:55:45,596 - root - INFO - Testing market data by getting price for AAPL
+2025-02-25 23:55:45,596 - src.connectors.ibkr.data_feed - INFO - Requesting market data for AAPL
+2025-02-25 23:55:45,596 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-25 23:55:45,596 - ibapi.client - INFO - REQUEST reqMktData {'reqId': 2, 'contract': 1966610981488: 0,AAPL,STK,,0.0,,,SMART,,USD,,,False,,combo:, 'genericTickList': '', 'snapshot': True, 'regulatorySnapshot': False, 'mktDataOptions': []}
+2025-02-25 23:55:45,597 - ibapi.client - INFO - SENDING reqMktData b'\x00\x00\x00.1\x0011\x002\x000\x00AAPL\x00STK\x00\x000.0\x00\x00\x00SMART\x00\x00USD\x00\x00\x000\x00\x001\x000\x00\x00'
+2025-02-25 23:55:45,598 - ibapi.wrapper - INFO - ANSWER nextValidId {'orderId': 1}
+2025-02-25 23:55:45,599 - src.connectors.ibkr.client - INFO - Next valid order ID received: 1
+2025-02-25 23:55:45,599 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-25 23:55:45,599 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: HMDS data farm connection is inactive but should be available upon demand.ushmds (code: 2107)
+2025-02-25 23:55:45,599 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-25 23:55:50,623 - src.connectors.ibkr.data_feed - INFO - Canceling market data request 2
+2025-02-25 23:55:50,624 - ibapi.client - INFO - REQUEST cancelMktData {'reqId': 2}
+2025-02-25 23:55:50,625 - ibapi.client - INFO - SENDING cancelMktData b'\x00\x00\x00\x062\x002\x002\x00'
+2025-02-25 23:55:50,626 - root - WARNING - Could not get price for AAPL
+2025-02-25 23:55:50,626 - root - INFO - Bot is now running. Press Ctrl+C to exit.
+2025-02-25 23:56:50,655 - root - INFO - Bot heartbeat - still running
+2025-02-25 23:57:50,684 - root - INFO - Bot heartbeat - still running
+2025-02-25 23:58:50,713 - root - INFO - Bot heartbeat - still running
+2025-02-25 23:59:50,736 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:00:50,762 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:01:50,787 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:02:50,815 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:03:50,841 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:04:50,868 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:05:50,894 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:06:50,922 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:07:50,946 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:08:50,972 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:09:50,995 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:10:51,022 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:11:51,049 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:42:57,023 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:43:04,536 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been lost. (code: 1100)
+2025-02-26 00:43:04,538 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been lost. (code: 1100)
+2025-02-26 00:43:06,308 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Market data farm connection is broken:usfarm (code: 2103)
+2025-02-26 00:43:06,309 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Market data farm connection is broken:usfarm (code: 2103)
+2025-02-26 00:43:06,312 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Sec-def data farm connection is broken:secdefil (code: 2157)
+2025-02-26 00:43:06,312 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Sec-def data farm connection is broken:secdefil (code: 2157)
+2025-02-26 00:43:08,063 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-26 00:43:08,064 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-26 00:43:08,498 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-26 00:43:08,500 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-26 00:43:36,838 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been restored - data maintained. The following farms are connected: usfarm; secdefil. The following farms are not connected: ushmds. (code: 1102)
+2025-02-26 00:43:36,844 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been restored - data maintained. The following farms are connected: usfarm; secdefil. The following farms are not connected: ushmds. (code: 1102)
+2025-02-26 00:43:57,061 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:44:57,092 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:45:57,119 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:46:57,148 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:47:57,194 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:48:57,260 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:49:57,294 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:50:57,329 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:51:57,361 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:52:57,394 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:53:57,425 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:54:57,448 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:55:57,472 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:56:57,494 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:57:57,518 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:58:57,544 - root - INFO - Bot heartbeat - still running
+2025-02-26 00:59:57,572 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:00:57,604 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:01:57,633 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:02:57,665 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:03:57,696 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:04:57,728 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:05:57,759 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:06:57,791 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:07:57,820 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:08:57,848 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:09:57,884 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:10:57,912 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:11:57,946 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:12:57,979 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:13:58,013 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:14:58,048 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:15:58,081 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:16:58,114 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:17:58,144 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:18:58,169 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:19:58,194 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:20:58,221 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:21:58,250 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:22:58,278 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:23:58,306 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:24:58,334 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:25:58,362 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:26:58,386 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:27:58,412 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:28:58,442 - root - INFO - Bot heartbeat - still running
+2025-02-26 01:29:58,469 - root - INFO - Bot heartbeat - still running
