@@ -212,3 +212,40 @@
 2025-02-26 01:27:58,412 - root - INFO - Bot heartbeat - still running
 2025-02-26 01:28:58,442 - root - INFO - Bot heartbeat - still running
 2025-02-26 01:29:58,469 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:48:49,936 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:49:01,380 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been lost. (code: 1100)
+2025-02-26 09:49:01,384 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been lost. (code: 1100)
+2025-02-26 09:49:02,052 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Sec-def data farm connection is broken:secdefil (code: 2157)
+2025-02-26 09:49:02,054 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Sec-def data farm connection is broken:secdefil (code: 2157)
+2025-02-26 09:49:02,501 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Market data farm connection is broken:usfarm (code: 2103)
+2025-02-26 09:49:02,501 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Market data farm connection is broken:usfarm (code: 2103)
+2025-02-26 09:49:03,614 - src.connectors.ibkr.client - INFO - IBKR message: HMDS data farm connection is OK:ushmds (code: 2106)
+2025-02-26 09:49:03,615 - src.connectors.ibkr.client - INFO - IBKR message: HMDS data farm connection is OK:ushmds (code: 2106)
+2025-02-26 09:49:03,795 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-26 09:49:03,796 - src.connectors.ibkr.client - INFO - IBKR message: Sec-def data farm connection is OK:secdefil (code: 2158)
+2025-02-26 09:49:04,532 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-26 09:49:04,533 - src.connectors.ibkr.client - INFO - IBKR message: Market data farm connection is OK:usfarm (code: 2104)
+2025-02-26 09:49:05,055 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been restored - data maintained. All data farms are connected: usfarm; ushmds; secdefil. (code: 1102)
+2025-02-26 09:49:05,057 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: Connectivity between IBKR and Trader Workstation has been restored - data maintained. All data farms are connected: usfarm; ushmds; secdefil. (code: 1102)
+2025-02-26 09:49:49,966 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:50:49,997 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:51:50,039 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:52:50,072 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:53:50,228 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:54:50,258 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:55:03,679 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: HMDS data farm connection is inactive but should be available upon demand.ushmds (code: 2107)
+2025-02-26 09:55:03,681 - src.connectors.ibkr.client - ERROR - IBKR error for request -1: HMDS data farm connection is inactive but should be available upon demand.ushmds (code: 2107)
+2025-02-26 09:55:50,286 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:56:50,310 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:57:50,335 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:58:50,363 - root - INFO - Bot heartbeat - still running
+2025-02-26 09:59:50,395 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:00:50,425 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:01:50,454 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:02:50,483 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:03:50,509 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:04:50,539 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:05:50,568 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:06:50,595 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:07:50,622 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:08:50,648 - root - INFO - Bot heartbeat - still running

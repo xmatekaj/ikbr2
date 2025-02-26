@@ -14,11 +14,13 @@ import threading
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import modules
-from src.config.settings import default_settings
+from src.config.settings import settings
+from src.core.bot_manager import BotManager
 from src.connectors.ibkr.client import IBKRClient
-from src.connectors.ibkr.data_feed import IBKRDataFeed
-from src.connectors.ibkr.order_manager import IBKROrderManager
-from src.core.bot_manager import BotManager  # We'll implement this later
+from src.monitoring.performance_tracker import PerformanceTracker
+from src.monitoring.data_collector import DataCollector
+from src.monitoring.dashboard.app import Dashboard
+from src.monitoring.alerts.alert_manager import AlertManager
 
 def setup_logging():
     """Setup logging configuration."""
@@ -142,6 +144,34 @@ def main():
             
             if client.connected:
                 logger.info("Successfully connected to IBKR!")
+                logger.info("Initializing performance monitoring")
+                performance_tracker = PerformanceTracker()
+                data_collector = DataCollector(data_feed, order_manager)
+
+                # Start monitoring components
+                performance_tracker.start()
+                data_collector.start()
+
+                # Initialize alert system
+                alert_manager = AlertManager(data_collector, performance_tracker)
+                alert_manager.start()
+
+                # Start dashboard if enabled
+                if settings.get('ENABLE_DASHBOARD', False):
+                    dashboard_host = settings.get('DASHBOARD_HOST', '0.0.0.0')
+                    dashboard_port = settings.get('DASHBOARD_PORT', 8050)
+                    
+                    logger.info(f"Starting monitoring dashboard on {dashboard_host}:{dashboard_port}")
+                    
+                    # Create dashboard on a separate thread
+                    dashboard = Dashboard(data_collector, performance_tracker)
+                    dashboard_thread = threading.Thread(
+                        target=dashboard.start,
+                        args=(dashboard_host, dashboard_port, False),  # host, port, debug
+                        daemon=True
+                    )
+                    dashboard_thread.start()
+                    logger.info("Dashboard started")
                 logger.info(f"Client version: {client.serverVersion()}")
                 logger.info(f"Server time: {client.twsConnectionTime()}")
                 logger.info("Connection test successful")
@@ -228,6 +258,17 @@ def main():
     
     finally:
         # Clean shutdown
+        logger.info("Shutting down monitoring system")
+        try:
+            if 'performance_tracker' in locals():
+                performance_tracker.stop()
+            if 'data_collector' in locals():
+                data_collector.stop()
+            if 'alert_manager' in locals():
+                alert_manager.stop()
+            # The dashboard thread is a daemon thread, so it will terminate when the main thread exits
+        except Exception as e:
+            logger.error(f"Error shutting down monitoring system: {e}")
         logger.info("Disconnecting from IBKR")
         try:
             order_manager.disconnect_and_stop()

@@ -54,6 +54,11 @@ BACKTEST_END_DATE = "2023-12-31"    # Default end date for backtesting
 COMMISSION_PER_SHARE = 0.005        # Commission per share for backtesting (in USD)
 MINIMUM_COMMISSION = 1.0            # Minimum commission per trade for backtesting (in USD)
 
+# Add to existing settings
+ENABLE_DASHBOARD = True
+DASHBOARD_HOST = "0.0.0.0"  # Listen on all interfaces
+DASHBOARD_PORT = 8050
+
 class Settings:
     """
     Settings manager for the trading bot.

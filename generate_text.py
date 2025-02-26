@@ -12,6 +12,13 @@ import os
 import sys
 from pathlib import Path
 
+def is_excluded_path(path, exclude_dirs):
+    """
+    Check if any part of the path contains an excluded directory name.
+    """
+    path_parts = Path(path).parts
+    return any(excluded in path_parts for excluded in exclude_dirs)
+
 def main():
     # Get the directory to analyze (current directory if not specified)
     if len(sys.argv) > 1:
@@ -28,7 +35,7 @@ def main():
     include_types = ['.py', '.txt', '.json']
     
     # Directories to exclude
-    exclude_dirs = ['.git', '__pycache__', 'node_modules', '.idea', '.vscode']
+    exclude_dirs = ['.git', '__pycache__', 'node_modules', '.idea', '.vscode', 'venv']
     
     # Collect all files and extensions
     all_files = []
@@ -42,11 +49,20 @@ def main():
         
         # Walk through directory
         for current_dir, dirs, files in os.walk(root_path):
-            # Skip excluded directories
+            # Skip if this directory or any parent is in exclude_dirs
+            if is_excluded_path(current_dir, exclude_dirs):
+                dirs[:] = []  # Don't descend into this directory
+                continue
+            
+            # Skip excluded directories for next iteration
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             
-            # Get all file extensions
+            # Get all file extensions (excluding excluded paths)
             for file in files:
+                file_path = os.path.join(current_dir, file)
+                if is_excluded_path(file_path, exclude_dirs):
+                    continue
+                    
                 _, ext = os.path.splitext(file)
                 if ext:
                     all_extensions.add(ext)
@@ -68,6 +84,10 @@ def main():
                 
                 # Skip the current script
                 if abs_file_path == current_script_path:
+                    continue
+                    
+                # Skip if file is in an excluded path
+                if is_excluded_path(file_path, exclude_dirs):
                     continue
                 
                 # Filter by extension
