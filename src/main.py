@@ -14,7 +14,7 @@ import threading
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import modules
-from src.config.settings import settings
+from src.config.settings import settings, default_settings
 from src.core.bot_manager import BotManager
 from src.connectors.ibkr.client import IBKRClient
 from src.monitoring.performance_tracker import PerformanceTracker
@@ -25,15 +25,15 @@ from src.monitoring.alerts.alert_manager import AlertManager
 def setup_logging():
     """Setup logging configuration."""
     # Create log directories if they don't exist
-    system_log_dir = os.path.dirname(default_settings.get('SYSTEM_LOG_FILE'))
-    trade_log_dir = os.path.dirname(default_settings.get('TRADE_LOG_FILE'))
+    system_log_dir = os.path.dirname(settings.get('SYSTEM_LOG_FILE'))
+    trade_log_dir = os.path.dirname(settings.get('TRADE_LOG_FILE'))
     
     os.makedirs(system_log_dir, exist_ok=True)
     os.makedirs(trade_log_dir, exist_ok=True)
     
     # Configure root logger
-    log_level = default_settings.get('LOG_LEVEL')
-    log_format = default_settings.get('LOG_FORMAT')
+    log_level = settings.get('LOG_LEVEL')
+    log_format = settings.get('LOG_FORMAT')
     
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
@@ -112,11 +112,12 @@ def main():
     
     # Load custom configuration if provided
     if args.config:
-        from src.config.settings import Settings
+        from src.config.settings import TradingConfig
         logger.info(f"Loading configuration from {args.config}")
-        settings = Settings(args.config)
-    else:
-        settings = default_settings
+        custom_config = TradingConfig.from_json(args.config)
+        custom_settings = custom_config.to_dict()
+        # Update the default_settings with our custom settings
+        default_settings.update(custom_settings)
     
     # Configure IBKR connection based on mode
     host = settings.get('IBKR_HOST')
@@ -200,6 +201,9 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Create necessary components
+    from src.connectors.ibkr.data_feed import IBKRDataFeed
+    from src.connectors.ibkr.order_manager import IBKROrderManager
+
     data_feed = IBKRDataFeed(host=host, port=port, client_id=client_id)
     order_manager = IBKROrderManager(host=host, port=port, client_id=client_id+1)
     

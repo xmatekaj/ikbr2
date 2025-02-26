@@ -1,426 +1,453 @@
 """
-Bot Manager module for coordinating the trading bot's activities.
-This module serves as the central controller for the trading bot.
+Bot Manager for IKBR Trader Bot.
+
+This module provides a high-level manager for trading bots, allowing multiple
+trading strategies to run simultaneously with their own configurations.
+It coordinates the trading engines, performance tracking, and logging for all bots.
 """
 import logging
-import threading
-import time
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
 import os
 import json
+import datetime
+from typing import Dict, List, Optional, Type, Union
+import uuid
 
-# Import IBKR connector components
-from src.connectors.ibkr.data_feed import IBKRDataFeed
-from src.connectors.ibkr.order_manager import IBKROrderManager
+from ..config.settings import TradingConfig
+from ..strategies.base_strategy import BaseStrategy
+from .engine import TradingEngine
+from .performance import PerformanceTracker
+from ..utils.logging import system_logger
+from ..utils.logging.trade_logger import TradeLogger
 
-# Import configuration
-from src.config.settings import default_settings
-
-# Set up logger
 logger = logging.getLogger(__name__)
-trade_logger = logging.getLogger('trades')
+
 
 class BotManager:
     """
-    Central manager for the trading bot.
-    Coordinates data feeds, order management, and trading strategies.
+    Manages multiple trading bots and strategies.
+    
+    This class is responsible for creating, configuring, starting, and stopping
+    trading bots that run different strategies.
     """
     
-    def __init__(self, 
-                data_feed: IBKRDataFeed,
-                order_manager: IBKROrderManager,
-                settings: Optional[Dict[str, Any]] = None):
+    def __init__(self, config_path: str = None):
         """
         Initialize the bot manager.
         
         Args:
-            data_feed: The IBKR data feed client
-            order_manager: The IBKR order manager
-            settings: Optional settings dictionary (uses default_settings if None)
+            config_path: Path to the configuration file
         """
-        self.data_feed = data_feed
-        self.order_manager = order_manager
-        self.settings = settings if settings is not None else default_settings.get_all()
+        self.config_path = config_path
+        self.engines: Dict[str, TradingEngine] = {}
+        self.performance_trackers: Dict[str, PerformanceTracker] = {}
+        self.trade_loggers: Dict[str, TradeLogger] = {}
+        self.strategies: Dict[str, Dict] = {}  # Maps strategy_id to strategy info
         
-        # Trading state
-        self.running = False
-        self.trading_enabled = False
-        self.maintenance_mode = False
-        
-        # Strategy tracking
-        self.strategies = {}
-        self.active_strategy = None
-        
-        # Position tracking
-        self.positions = {}
-        self.orders = {}
-        
-        # Performance tracking
-        self.trades = []
-        self.daily_stats = {}
-        
-        # Lock for thread-safe operations
-        self.lock = threading.Lock()
-        
-        # Event for signaling shutdown
-        self.shutdown_event = threading.Event()
-        
-        # Threads
-        self.main_thread = None
-        self.data_thread = None
-        self.strategy_thread = None
+        # Load configuration if path is provided
+        if config_path and os.path.exists(config_path):
+            self._load_config()
         
         logger.info("Bot manager initialized")
     
-    def start(self) -> None:
-        """Start the bot manager and its components."""
-        if self.running:
-            logger.warning("Bot manager is already running")
-            return
-        
-        logger.info("Starting bot manager")
-        
-        # Verify connections
-        if not self.data_feed.connected:
-            logger.error("Data feed is not connected")
-            return
-        
-        if not self.order_manager.connected:
-            logger.error("Order manager is not connected")
-            return
-        
-        # Initialize state
-        self.running = True
-        self.shutdown_event.clear()
-        
-        # Start in maintenance mode (no trading) by default
-        self.maintenance_mode = True
-        self.trading_enabled = False
-        
-        # Start threads
-        self.main_thread = threading.Thread(target=self._main_loop, daemon=True)
-        self.main_thread.start()
-        
-        self.data_thread = threading.Thread(target=self._data_loop, daemon=True)
-        self.data_thread.start()
-        
-        logger.info("Bot manager started in maintenance mode (trading disabled)")
-    
-    def stop(self) -> None:
-        """Stop the bot manager and its components."""
-        if not self.running:
-            logger.warning("Bot manager is not running")
-            return
-        
-        logger.info("Stopping bot manager")
-        
-        # Signal threads to stop
-        self.running = False
-        self.shutdown_event.set()
-        
-        # Wait for threads to complete
-        if self.main_thread and self.main_thread.is_alive():
-            self.main_thread.join(timeout=5)
-        
-        if self.data_thread and self.data_thread.is_alive():
-            self.data_thread.join(timeout=5)
-        
-        if self.strategy_thread and self.strategy_thread.is_alive():
-            self.strategy_thread.join(timeout=5)
-        
-        logger.info("Bot manager stopped")
-    
-    def enable_trading(self) -> None:
-        """Enable trading for the bot."""
-        with self.lock:
-            if not self.running:
-                logger.warning("Cannot enable trading, bot is not running")
-                return
-            
-            self.trading_enabled = True
-            self.maintenance_mode = False
-            logger.info("Trading enabled")
-            trade_logger.info("Trading enabled")
-    
-    def disable_trading(self) -> None:
-        """Disable trading for the bot."""
-        with self.lock:
-            self.trading_enabled = False
-            logger.info("Trading disabled")
-            trade_logger.info("Trading disabled")
-    
-    def enter_maintenance_mode(self) -> None:
-        """Enter maintenance mode (disables trading and performs cleanup)."""
-        with self.lock:
-            self.trading_enabled = False
-            self.maintenance_mode = True
-            logger.info("Entered maintenance mode")
-    
-    def exit_maintenance_mode(self) -> None:
-        """Exit maintenance mode (trading remains disabled until explicitly enabled)."""
-        with self.lock:
-            self.maintenance_mode = False
-            logger.info("Exited maintenance mode")
-    
-    def get_status(self) -> Dict[str, Any]:
-        """
-        Get the current status of the bot.
-        
-        Returns:
-            Dict[str, Any]: Status information
-        """
-        with self.lock:
-            return {
-                'running': self.running,
-                'trading_enabled': self.trading_enabled,
-                'maintenance_mode': self.maintenance_mode,
-                'active_strategy': self.active_strategy,
-                'positions_count': len(self.positions),
-                'orders_count': len(self.orders),
-                'trades_count': len(self.trades)
-            }
-    
-    def _main_loop(self) -> None:
-        """Main control loop for the bot manager."""
-        logger.info("Main control loop started")
-        
-        check_interval = 1.0  # seconds
-        market_status_interval = 60  # seconds
-        account_update_interval = 300  # seconds
-        
-        last_market_check = 0
-        last_account_update = 0
-        
-        while self.running and not self.shutdown_event.is_set():
-            current_time = time.time()
-            
-            try:
-                # Check market status periodically
-                if current_time - last_market_check >= market_status_interval:
-                    self._check_market_status()
-                    last_market_check = current_time
-                
-                # Update account information periodically
-                if current_time - last_account_update >= account_update_interval:
-                    self._update_account_info()
-                    last_account_update = current_time
-                
-                # Run strategy if trading is enabled and not in maintenance
-                if self.trading_enabled and not self.maintenance_mode:
-                    self._check_trading_signals()
-                
-            except Exception as e:
-                logger.error(f"Error in main loop: {e}", exc_info=True)
-            
-            # Sleep until next check
-            time.sleep(check_interval)
-        
-        logger.info("Main control loop stopped")
-    
-    def _data_loop(self) -> None:
-        """Data management loop for the bot manager."""
-        logger.info("Data management loop started")
-        
-        update_interval = 5.0  # seconds
-        watchlist_update_interval = 60  # seconds
-        
-        last_watchlist_update = 0
-        
-        while self.running and not self.shutdown_event.is_set():
-            current_time = time.time()
-            
-            try:
-                # Update watchlist prices periodically
-                if current_time - last_watchlist_update >= watchlist_update_interval:
-                    self._update_watchlist()
-                    last_watchlist_update = current_time
-                
-                # Monitor existing positions
-                self._monitor_positions()
-                
-                # Monitor open orders
-                self._monitor_orders()
-                
-            except Exception as e:
-                logger.error(f"Error in data loop: {e}", exc_info=True)
-            
-            # Sleep until next update
-            time.sleep(update_interval)
-        
-        logger.info("Data management loop stopped")
-    
-    def _check_market_status(self) -> None:
-        """Check the current market status."""
-        # For now, just a placeholder
-        logger.debug("Checking market status")
-        # In a real implementation, would check if market is open, etc.
-    
-    def _update_account_info(self) -> None:
-        """Update account information."""
-        logger.debug("Updating account information")
-        
+    def _load_config(self) -> None:
+        """Load configuration from file."""
         try:
-            # Request account summary
-            req_id = self.order_manager.request_account_summary()
-            time.sleep(2)  # Wait for data
+            with open(self.config_path, 'r') as f:
+                config = json.load(f)
             
-            # Get account summary results
-            account_summary = self.order_manager.get_account_summary_result(req_id)
+            # Process global configuration
+            global_config = config.get('global', {})
             
-            # Process account information
-            for item in account_summary:
-                if item['tag'] == 'NetLiquidation':
-                    logger.info(f"Account value: {item['value']} {item['currency']}")
-                elif item['tag'] == 'AvailableFunds':
-                    logger.info(f"Available funds: {item['value']} {item['currency']}")
-        
+            # Process individual bot configurations
+            bots_config = config.get('bots', [])
+            for bot_config in bots_config:
+                bot_id = bot_config.get('id', str(uuid.uuid4()))
+                self._create_bot_from_config(bot_id, bot_config)
+            
+            logger.info(f"Loaded configuration from {self.config_path}")
         except Exception as e:
-            logger.error(f"Error updating account info: {e}")
+            logger.error(f"Failed to load configuration: {e}")
     
-    def _update_watchlist(self) -> None:
-        """Update prices for watchlist symbols."""
-        # For now, just a placeholder
-        logger.debug("Updating watchlist")
-        # In a real implementation, would track prices of symbols of interest
-    
-    def _monitor_positions(self) -> None:
-        """Monitor existing positions."""
-        # For now, just a placeholder
-        logger.debug("Monitoring positions")
-        # In a real implementation, would check for stop loss, take profit, etc.
-    
-    def _monitor_orders(self) -> None:
-        """Monitor open orders."""
-        # For now, just a placeholder
-        logger.debug("Monitoring orders")
-        # In a real implementation, would check order status, etc.
-    
-    def _check_trading_signals(self) -> None:
-        """Check for trading signals from strategies."""
-        # For now, just a placeholder
-        logger.debug("Checking trading signals")
-        # In a real implementation, would run active strategies
-    
-    # Trading operations
-    def place_market_order(self, 
-                          symbol: str, 
-                          quantity: int, 
-                          action: str) -> Optional[int]:
+    def _create_bot_from_config(self, bot_id: str, bot_config: dict) -> None:
         """
-        Place a market order.
+        Create a new trading bot from configuration.
         
         Args:
-            symbol: The stock symbol
-            quantity: Number of shares (positive)
-            action: "BUY" or "SELL"
+            bot_id: Unique identifier for the bot
+            bot_config: Bot configuration dictionary
+        """
+        try:
+            # Create trading config
+            trading_config = TradingConfig(
+                ibkr_host=bot_config.get('ibkr_host', 'localhost'),
+                ibkr_port=bot_config.get('ibkr_port', 7497),
+                ibkr_client_id=bot_config.get('ibkr_client_id', 1),
+                engine_loop_interval=bot_config.get('engine_loop_interval', 1.0),
+                paper_trading=bot_config.get('paper_trading', True),
+                max_positions=bot_config.get('max_positions', 10),
+                max_risk_per_trade=bot_config.get('max_risk_per_trade', 0.02),
+                initial_capital=bot_config.get('initial_capital', 100000.0)
+            )
+            
+            # Create engine and performance tracker
+            engine = TradingEngine(trading_config)
+            performance_tracker = PerformanceTracker(trading_config.initial_capital)
+            
+            # Store in dictionaries
+            self.engines[bot_id] = engine
+            self.performance_trackers[bot_id] = performance_tracker
+            
+            # Load strategies for this bot
+            strategies_config = bot_config.get('strategies', [])
+            for strategy_config in strategies_config:
+                self._add_strategy_from_config(bot_id, strategy_config)
+            
+            logger.info(f"Created bot {bot_id} with {len(strategies_config)} strategies")
+        except Exception as e:
+            logger.error(f"Failed to create bot {bot_id}: {e}")
+    
+    def _add_strategy_from_config(self, bot_id: str, strategy_config: dict) -> None:
+        """
+        Add a strategy to a bot from configuration.
+        
+        Args:
+            bot_id: Bot identifier
+            strategy_config: Strategy configuration dictionary
+        """
+        try:
+            strategy_id = strategy_config.get('id', str(uuid.uuid4()))
+            strategy_type = strategy_config.get('type')
+            strategy_params = strategy_config.get('params', {})
+            
+            # Create a unique strategy_inst_id that combines bot_id and strategy_id
+            strategy_inst_id = f"{bot_id}_{strategy_id}"
+            
+            # Create strategy instance - this is a simplified example
+            # In a real implementation, you would dynamically import and instantiate strategies
+            # based on the strategy_type
+            
+            # For now, let's just store the configuration
+            self.strategies[strategy_inst_id] = {
+                'bot_id': bot_id,
+                'strategy_id': strategy_id,
+                'type': strategy_type,
+                'params': strategy_params,
+                'active': False
+            }
+            
+            # Create a trade logger for this strategy
+            self.trade_loggers[strategy_inst_id] = TradeLogger(strategy_inst_id)
+            
+            logger.info(f"Added strategy {strategy_id} to bot {bot_id}")
+        except Exception as e:
+            logger.error(f"Failed to add strategy to bot {bot_id}: {e}")
+    
+    def create_bot(self, bot_id: str, config: TradingConfig) -> str:
+        """
+        Create a new trading bot.
+        
+        Args:
+            bot_id: Unique identifier for the bot
+            config: Trading configuration
             
         Returns:
-            Optional[int]: The order ID if successful, None otherwise
+            The bot ID
         """
-        if not self.trading_enabled:
-            logger.warning(f"Trading is disabled, cannot place {action} order for {symbol}")
-            return None
+        # Generate a unique ID if not provided
+        if not bot_id:
+            bot_id = str(uuid.uuid4())
+        
+        # Check if bot already exists
+        if bot_id in self.engines:
+            logger.warning(f"Bot {bot_id} already exists, overwriting")
+        
+        # Create engine and performance tracker
+        engine = TradingEngine(config)
+        performance_tracker = PerformanceTracker(config.initial_capital)
+        
+        # Store in dictionaries
+        self.engines[bot_id] = engine
+        self.performance_trackers[bot_id] = performance_tracker
+        
+        logger.info(f"Created bot {bot_id}")
+        return bot_id
+    
+    def add_strategy(self, 
+                    bot_id: str, 
+                    strategy_id: str,
+                    strategy: BaseStrategy) -> str:
+        """
+        Add a strategy to a bot.
+        
+        Args:
+            bot_id: Bot identifier
+            strategy_id: Strategy identifier
+            strategy: Strategy instance
+            
+        Returns:
+            The strategy instance ID
+        """
+        if bot_id not in self.engines:
+            raise ValueError(f"Bot {bot_id} does not exist")
+        
+        # Create a unique strategy instance ID
+        strategy_inst_id = f"{bot_id}_{strategy_id}"
+        
+        # Add strategy to engine
+        engine = self.engines[bot_id]
+        engine.add_strategy(strategy_id, strategy)
+        
+        # Store strategy info
+        self.strategies[strategy_inst_id] = {
+            'bot_id': bot_id,
+            'strategy_id': strategy_id,
+            'type': strategy.__class__.__name__,
+            'params': {},  # Could extract from strategy instance
+            'active': False
+        }
+        
+        # Create a trade logger for this strategy
+        self.trade_loggers[strategy_inst_id] = TradeLogger(strategy_inst_id)
+        
+        logger.info(f"Added strategy {strategy_id} to bot {bot_id}")
+        return strategy_inst_id
+    
+    def start_bot(self, bot_id: str) -> bool:
+        """
+        Start a trading bot.
+        
+        Args:
+            bot_id: Bot identifier
+            
+        Returns:
+            True if the bot was started successfully, False otherwise
+        """
+        if bot_id not in self.engines:
+            logger.error(f"Bot {bot_id} does not exist")
+            return False
+        
+        engine = self.engines[bot_id]
+        result = engine.start()
+        
+        if result:
+            # Update strategy statuses
+            for strategy_inst_id, strategy_info in self.strategies.items():
+                if strategy_info['bot_id'] == bot_id:
+                    strategy_info['active'] = True
+            
+            logger.info(f"Started bot {bot_id}")
+        else:
+            logger.error(f"Failed to start bot {bot_id}")
+        
+        return result
+    
+    def stop_bot(self, bot_id: str) -> bool:
+        """
+        Stop a trading bot.
+        
+        Args:
+            bot_id: Bot identifier
+            
+        Returns:
+            True if the bot was stopped successfully, False otherwise
+        """
+        if bot_id not in self.engines:
+            logger.error(f"Bot {bot_id} does not exist")
+            return False
+        
+        engine = self.engines[bot_id]
+        engine.stop()
+        
+        # Update strategy statuses
+        for strategy_inst_id, strategy_info in self.strategies.items():
+            if strategy_info['bot_id'] == bot_id:
+                strategy_info['active'] = False
+        
+        logger.info(f"Stopped bot {bot_id}")
+        return True
+    
+    def stop_all_bots(self) -> None:
+        """Stop all running trading bots."""
+        for bot_id in self.engines:
+            self.stop_bot(bot_id)
+        
+        logger.info("Stopped all bots")
+    
+    def get_bot_status(self, bot_id: str) -> Dict:
+        """
+        Get the status of a bot.
+        
+        Args:
+            bot_id: Bot identifier
+            
+        Returns:
+            A dictionary containing the bot's status information
+        """
+        if bot_id not in self.engines:
+            return {"error": f"Bot {bot_id} does not exist"}
+        
+        engine = self.engines[bot_id]
+        engine_status = engine.get_engine_status()
+        
+        # Get strategies for this bot
+        strategies = {}
+        for strategy_inst_id, strategy_info in self.strategies.items():
+            if strategy_info['bot_id'] == bot_id:
+                strategies[strategy_info['strategy_id']] = {
+                    "type": strategy_info['type'],
+                    "active": strategy_info['active']
+                }
+        
+        # Get performance metrics if available
+        performance = {}
+        if bot_id in self.performance_trackers:
+            performance = self.performance_trackers[bot_id].get_performance_summary()
+        
+        return {
+            "bot_id": bot_id,
+            "engine_status": engine_status,
+            "strategies": strategies,
+            "performance": performance
+        }
+    
+    def get_all_bots_status(self) -> Dict[str, Dict]:
+        """
+        Get the status of all bots.
+        
+        Returns:
+            A dictionary mapping bot IDs to their status information
+        """
+        return {bot_id: self.get_bot_status(bot_id) for bot_id in self.engines}
+    
+    def get_strategy_status(self, strategy_inst_id: str) -> Dict:
+        """
+        Get the status of a strategy.
+        
+        Args:
+            strategy_inst_id: Strategy instance identifier
+            
+        Returns:
+            A dictionary containing the strategy's status information
+        """
+        if strategy_inst_id not in self.strategies:
+            return {"error": f"Strategy {strategy_inst_id} does not exist"}
+        
+        strategy_info = self.strategies[strategy_inst_id]
+        bot_id = strategy_info['bot_id']
+        strategy_id = strategy_info['strategy_id']
+        
+        if bot_id not in self.engines:
+            return {"error": f"Bot {bot_id} for strategy {strategy_inst_id} does not exist"}
+        
+        engine = self.engines[bot_id]
+        strategy_status = engine.get_strategy_status(strategy_id)
+        
+        return {
+            "strategy_inst_id": strategy_inst_id,
+            "bot_id": bot_id,
+            "strategy_id": strategy_id,
+            "type": strategy_info['type'],
+            "active": strategy_info['active'],
+            "status": strategy_status
+        }
+    
+    def update_daily_performance(self) -> None:
+        """Update daily performance metrics for all bots."""
+        current_date = datetime.datetime.now().date()
+        
+        for bot_id, performance_tracker in self.performance_trackers.items():
+            if bot_id in self.engines:
+                engine = self.engines[bot_id]
+                
+                # Only update if engine is running
+                if engine.is_running():
+                    # Get current equity (in a real implementation, this would come from the broker)
+                    # For this example, we'll just use the current_capital
+                    equity_value = performance_tracker.current_capital
+                    
+                    # Update daily equity
+                    performance_tracker.update_daily_equity(current_date, equity_value)
+        
+        logger.info("Updated daily performance metrics")
+    
+    def generate_performance_reports(self) -> Dict[str, str]:
+        """
+        Generate performance reports for all bots.
+        
+        Returns:
+            A dictionary mapping bot IDs to their performance reports
+        """
+        reports = {}
+        
+        for bot_id, performance_tracker in self.performance_trackers.items():
+            reports[bot_id] = performance_tracker.generate_performance_report()
+        
+        return reports
+    
+    def save_config(self, config_path: str = None) -> bool:
+        """
+        Save the current configuration to a file.
+        
+        Args:
+            config_path: Path to save the configuration file
+            
+        Returns:
+            True if the configuration was saved successfully, False otherwise
+        """
+        if config_path is None:
+            config_path = self.config_path
+        
+        if config_path is None:
+            logger.error("No configuration path specified")
+            return False
         
         try:
-            logger.info(f"Placing {action} market order for {quantity} shares of {symbol}")
+            # Build configuration dictionary
+            config = {
+                "global": {},
+                "bots": []
+            }
             
-            # Create order objects
-            contract, order = self.order_manager.create_market_order(
-                symbol=symbol,
-                quantity=quantity,
-                action=action
-            )
+            # Group strategies by bot
+            bot_strategies = {}
+            for strategy_inst_id, strategy_info in self.strategies.items():
+                bot_id = strategy_info['bot_id']
+                if bot_id not in bot_strategies:
+                    bot_strategies[bot_id] = []
+                
+                bot_strategies[bot_id].append({
+                    "id": strategy_info['strategy_id'],
+                    "type": strategy_info['type'],
+                    "params": strategy_info['params']
+                })
             
-            # Define callbacks
-            def on_order_status(order_id, order_data):
-                logger.info(f"Order {order_id} status update: {order_data['status']}")
-                trade_logger.info(f"Order {order_id} status update: {order_data['status']}")
-            
-            def on_execution(order_id, execution, order_data):
-                logger.info(f"Execution for order {order_id}: {execution['shares']} shares @ ${execution['price']}")
-                trade_logger.info(f"Execution for order {order_id}: {execution['shares']} shares @ ${execution['price']}")
-            
-            # Place the order
-            order_id = self.order_manager.place_order(
-                contract=contract,
-                order=order,
-                status_callback=on_order_status,
-                execution_callback=on_execution
-            )
-            
-            # Track the order
-            with self.lock:
-                self.orders[order_id] = {
-                    'symbol': symbol,
-                    'quantity': quantity,
-                    'action': action,
-                    'order_type': 'MKT',
-                    'time_placed': datetime.now(),
-                    'status': 'PLACED'
+            # Build bot configurations
+            for bot_id, engine in self.engines.items():
+                # Extract config from engine
+                config_dict = {
+                    "id": bot_id,
+                    "ibkr_host": engine.config.ibkr_host,
+                    "ibkr_port": engine.config.ibkr_port,
+                    "ibkr_client_id": engine.config.ibkr_client_id,
+                    "engine_loop_interval": engine.config.engine_loop_interval,
+                    "paper_trading": engine.config.paper_trading,
+                    "max_positions": engine.config.max_positions,
+                    "max_risk_per_trade": engine.config.max_risk_per_trade,
+                    "initial_capital": engine.config.initial_capital,
+                    "strategies": bot_strategies.get(bot_id, [])
                 }
+                
+                config["bots"].append(config_dict)
             
-            logger.info(f"Order placed with ID: {order_id}")
-            trade_logger.info(f"Order placed: {action} {quantity} {symbol} (ID: {order_id})")
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
             
-            return order_id
+            # Write to file
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
             
+            logger.info(f"Saved configuration to {config_path}")
+            return True
         except Exception as e:
-            logger.error(f"Error placing order: {e}")
-            return None
-
-# Example usage if this module is run directly
-if __name__ == "__main__":
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Create mock objects for testing
-    class MockDataFeed:
-        connected = True
-    
-    class MockOrderManager:
-        connected = True
-        
-        def request_account_summary(self):
-            return 1
-            
-        def get_account_summary_result(self, req_id):
-            return [
-                {'account': 'DU12345', 'tag': 'NetLiquidation', 'value': '100000', 'currency': 'USD'},
-                {'account': 'DU12345', 'tag': 'AvailableFunds', 'value': '50000', 'currency': 'USD'}
-            ]
-    
-    # Create and start the bot manager
-    data_feed = MockDataFeed()
-    order_manager = MockOrderManager()
-    
-    bot = BotManager(data_feed, order_manager)
-    
-    try:
-        print("Starting bot manager...")
-        bot.start()
-        
-        # Run for a while
-        time.sleep(2)
-        
-        print("Bot status:", bot.get_status())
-        
-        print("Enabling trading...")
-        bot.enable_trading()
-        
-        # Run for a while longer
-        time.sleep(5)
-        
-        print("Bot status:", bot.get_status())
-        
-        print("Entering maintenance mode...")
-        bot.enter_maintenance_mode()
-        
-        # Run for a while longer
-        time.sleep(2)
-        
-        print("Bot status:", bot.get_status())
-        
-    finally:
-        print("Stopping bot manager...")
-        bot.stop()
+            logger.error(f"Failed to save configuration: {e}")
+            return False

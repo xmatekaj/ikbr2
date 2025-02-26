@@ -249,3 +249,83 @@
 2025-02-26 10:06:50,595 - root - INFO - Bot heartbeat - still running
 2025-02-26 10:07:50,622 - root - INFO - Bot heartbeat - still running
 2025-02-26 10:08:50,648 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:09:50,676 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:10:50,709 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:11:50,737 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:12:50,768 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:13:50,795 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:14:50,824 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:15:50,844 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:16:50,882 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:17:50,906 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:18:50,946 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:19:50,973 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:20:50,998 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:21:51,028 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:22:51,064 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:23:51,114 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:24:51,170 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:25:51,225 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:26:51,287 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:27:51,328 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:28:51,355 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:29:51,427 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:30:51,547 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:31:51,593 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:32:51,627 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:33:51,665 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:34:51,711 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:35:51,744 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:36:51,785 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:37:51,815 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:38:51,869 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:39:51,893 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:40:51,919 - root - INFO - Bot heartbeat - still running
+2025-02-26 10:41:38,268 - root - INFO - Shutdown signal received
+2025-02-26 10:41:38,941 - root - INFO - Shutdown initiated
+2025-02-26 10:41:38,942 - root - INFO - Disconnecting from IBKR
+2025-02-26 10:41:38,943 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-26 10:41:38,944 - ibapi.client - INFO - disconnecting
+2025-02-26 10:41:38,945 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-26 10:41:38,946 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-26 10:41:38,947 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:39,015 - ibapi.client - INFO - disconnecting
+2025-02-26 10:41:39,015 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-26 10:41:39,016 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-26 10:41:39,016 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:43,948 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 2
+2025-02-26 10:41:43,957 - ibapi.client - INFO - sent startApi
+2025-02-26 10:41:43,957 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-26 10:41:43,958 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x002\x00\x00'
+2025-02-26 10:41:43,958 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-26 10:41:43,958 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-26 10:41:43,959 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-26 10:41:43,960 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-26 10:41:43,960 - src.connectors.ibkr.client - INFO - Disconnecting from IBKR
+2025-02-26 10:41:43,961 - ibapi.client - INFO - disconnecting
+2025-02-26 10:41:43,961 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-26 10:41:43,961 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-26 10:41:43,962 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:44,017 - src.connectors.ibkr.client - INFO - Connecting to IBKR at None:None with client ID 2
+2025-02-26 10:41:44,023 - src.connectors.ibkr.client - ERROR - Error in IBKR client thread: str, bytes or bytearray expected, not NoneType
+2025-02-26 10:41:44,023 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:44,037 - ibapi.client - INFO - disconnecting
+2025-02-26 10:41:44,038 - ibapi.wrapper - INFO - ANSWER connectionClosed {}
+2025-02-26 10:41:44,038 - src.connectors.ibkr.client - INFO - Connection to IBKR closed
+2025-02-26 10:41:44,039 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:48,963 - src.connectors.ibkr.client - INFO - Connecting to IBKR at 127.0.0.1:7497 with client ID 1
+2025-02-26 10:41:48,971 - ibapi.client - INFO - sent startApi
+2025-02-26 10:41:48,972 - ibapi.client - INFO - REQUEST startApi {}
+2025-02-26 10:41:48,973 - ibapi.client - INFO - SENDING startApi b'\x00\x00\x00\x0871\x002\x001\x00\x00'
+2025-02-26 10:41:48,974 - ibapi.wrapper - INFO - ANSWER connectAck {}
+2025-02-26 10:41:48,974 - src.connectors.ibkr.client - INFO - Connection to IBKR acknowledged
+2025-02-26 10:41:48,976 - src.connectors.ibkr.client - INFO - Successfully connected to IBKR
+2025-02-26 10:41:48,977 - ibapi.wrapper - INFO - ANSWER managedAccounts {'accountsList': 'DUH802936'}
+2025-02-26 10:41:48,978 - root - INFO - Bot shut down successfully
+2025-02-26 10:41:49,024 - src.connectors.ibkr.client - INFO - Connecting to IBKR at None:None with client ID 2
+2025-02-26 10:41:49,039 - src.connectors.ibkr.client - INFO - Connecting to IBKR at None:None with client ID 1
+2025-02-26 10:41:49,040 - src.connectors.ibkr.client - ERROR - Error in IBKR client thread: str, bytes or bytearray expected, not NoneType
+2025-02-26 10:41:49,040 - src.connectors.ibkr.client - INFO - Attempting to reconnect...
+2025-02-26 10:41:54,041 - src.connectors.ibkr.client - INFO - Connecting to IBKR at None:None with client ID 1
+2025-02-26 12:58:09,783 - root - INFO - Starting IBKR Trading Bot
+2025-02-26 18:16:07,670 - root - INFO - Starting IBKR Trading Bot

@@ -18,8 +18,10 @@ python-dateutil>=2.8.1  # Date utilities
 schedule>=0.6.0         # Job scheduling
 pymongo>=3.11.0         # MongoDB connection (optional, for data storage)
 sqlalchemy>=1.3.19      # SQL database access (optional, for data storage)
+dash>=2.18.2        # Dash web application framework (optional, for GUI)
 
 # Testing and development
 pytest>=6.0.1       # Testing framework
 flake8>=3.8.3       # Code linting
 black>=19.10b0      # Code formatting
+

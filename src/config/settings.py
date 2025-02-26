@@ -1,187 +1,254 @@
 """
-Global settings for the IBKR trading bot.
+Global configuration settings for the IKBR Trader Bot.
+
+This module provides configuration classes and default settings for the trading system.
 """
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Union
 import os
 import json
-from typing import Dict, Any, Optional
 import logging
 
-# Logging configuration
-LOG_LEVEL = logging.INFO
-LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-SYSTEM_LOG_FILE = os.path.join('logs', 'system', 'system.log')
-TRADE_LOG_FILE = os.path.join('logs', 'trades', 'trades.log')
+logger = logging.getLogger(__name__)
 
-# IBKR connection settings
-IBKR_HOST = "127.0.0.1"  # TWS/IB Gateway host
-IBKR_PORT = 7497         # 7497 for TWS Paper, 4002 for IB Gateway Paper
-IBKR_CLIENT_ID = 1       # Client ID for this bot
-IBKR_ACCOUNT = ""        # Account number (if empty, will use the first available)
-IBKR_TIMEOUT = 20        # Connection timeout in seconds
-IBKR_AUTO_RECONNECT = True  # Automatically attempt to reconnect if disconnected
 
-# Trading parameters
-MAX_POSITIONS = 5           # Maximum number of concurrent positions
-MAX_POSITION_SIZE = 0.1     # Maximum position size as fraction of account value
-DEFAULT_ORDER_TYPE = "MKT"  # Default order type ("MKT", "LMT", "STP", etc.)
-ENABLE_STOP_LOSS = True     # Whether to use stop-loss orders
-STOP_LOSS_PERCENT = 0.05    # Stop-loss percentage (e.g., 0.05 = 5% below entry)
-ENABLE_TAKE_PROFIT = True   # Whether to use take-profit orders
-TAKE_PROFIT_PERCENT = 0.1   # Take-profit percentage (e.g., 0.1 = 10% above entry)
-
-# Data settings
-HISTORICAL_DATA_DIR = "historical_data"  # Directory for storing historical data
-PRICE_BAR_SIZE = "1 min"                 # Default bar size for price data
-PRICE_DURATION = "1 D"                   # Default lookback duration
-
-# Strategy parameters
-STRATEGY_CONFIG_DIR = os.path.join("src", "config", "strategy_configs")  # Strategy configuration directory
-
-# Trading schedule
-TRADING_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-MARKET_OPEN_TIME = "09:30"   # Market open time (Eastern Time)
-MARKET_CLOSE_TIME = "16:00"  # Market close time (Eastern Time)
-PRE_MARKET_START = "08:00"   # Pre-market start time (Eastern Time)
-AFTER_MARKET_END = "20:00"   # After-market end time (Eastern Time)
-
-# Performance tracking
-TRACK_PERFORMANCE = True     # Whether to track and record performance metrics
-BENCHMARK_SYMBOL = "SPY"     # Benchmark symbol for performance comparison
-
-# Backtesting parameters
-BACKTEST_START_DATE = "2023-01-01"  # Default start date for backtesting
-BACKTEST_END_DATE = "2023-12-31"    # Default end date for backtesting
-COMMISSION_PER_SHARE = 0.005        # Commission per share for backtesting (in USD)
-MINIMUM_COMMISSION = 1.0            # Minimum commission per trade for backtesting (in USD)
-
-# Add to existing settings
-ENABLE_DASHBOARD = True
-DASHBOARD_HOST = "0.0.0.0"  # Listen on all interfaces
-DASHBOARD_PORT = 8050
-
-class Settings:
-    """
-    Settings manager for the trading bot.
-    Loads settings from the settings module and optional config files.
-    """
+@dataclass
+class TradingConfig:
+    """Configuration settings for trading."""
     
-    def __init__(self, config_file: Optional[str] = None):
+    # IBKR connection parameters
+    ibkr_host: str = "127.0.0.1"
+    ibkr_port: int = 7497  # 7497 for TWS paper trading, 7496 for TWS live, 4002 for Gateway paper, 4001 for Gateway live
+    ibkr_client_id: int = 1
+    
+    # Trading parameters
+    paper_trading: bool = True
+    max_positions: int = 10
+    max_risk_per_trade: float = 0.02  # Maximum risk per trade as a fraction of account value
+    initial_capital: float = 100000.0
+    
+    # System parameters
+    engine_loop_interval: float = 1.0  # Seconds between engine loop iterations
+    
+    # Additional parameters with default values
+    commission_per_share: float = 0.005  # IBKR commission per share (simplified)
+    minimum_commission: float = 1.0      # Minimum commission per trade
+    slippage_model: str = "fixed"        # "fixed", "percentage", or "custom"
+    slippage_value: float = 0.01         # Fixed slippage in dollars or percentage
+    market_data_type: str = "real-time"  # "real-time" or "delayed"
+    
+    # Advanced parameters
+    reconnect_attempts: int = 3
+    reconnect_wait_time: int = 5  # Seconds to wait between reconnect attempts
+    order_timeout: int = 30       # Seconds to wait for order acknowledgment
+    
+    # Strategy-specific parameters
+    strategy_params: Dict[str, Dict] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        # Validate trading values
+        if self.max_risk_per_trade <= 0 or self.max_risk_per_trade > 1:
+            logger.warning(f"Invalid max_risk_per_trade: {self.max_risk_per_trade}. Setting to default 0.02")
+            self.max_risk_per_trade = 0.02
+        
+        if self.initial_capital <= 0:
+            logger.warning(f"Invalid initial_capital: {self.initial_capital}. Setting to default 100000.0")
+            self.initial_capital = 100000.0
+        
+        if self.max_positions <= 0:
+            logger.warning(f"Invalid max_positions: {self.max_positions}. Setting to default 10")
+            self.max_positions = 10
+        
+        # Validate system parameters
+        if self.engine_loop_interval <= 0:
+            logger.warning(f"Invalid engine_loop_interval: {self.engine_loop_interval}. Setting to default 1.0")
+            self.engine_loop_interval = 1.0
+    
+    @classmethod
+    def from_dict(cls, config_dict: Dict) -> 'TradingConfig':
         """
-        Initialize settings manager.
+        Create a TradingConfig from a dictionary.
         
         Args:
-            config_file: Optional path to a JSON config file to override defaults
+            config_dict: Configuration dictionary
+            
+        Returns:
+            A TradingConfig instance
         """
-        # Start with default settings from this module
-        self._settings = {key: value for key, value in globals().items() 
-                         if key.isupper() and not key.startswith('_')}
+        # Filter out keys that are not fields in TradingConfig
+        valid_keys = {field.name for field in cls.__dataclass_fields__.values()}
+        filtered_dict = {k: v for k, v in config_dict.items() if k in valid_keys}
         
-        # Load settings from environment variables
-        self._load_from_env()
-        
-        # Load settings from config file if provided
-        if config_file:
-            self._load_from_file(config_file)
+        return cls(**filtered_dict)
     
-    def _load_from_env(self) -> None:
-        """Load settings from environment variables."""
-        for key in self._settings:
-            env_var = f"IBKR_BOT_{key}"
-            if env_var in os.environ:
-                # Convert environment variable to the right type
-                value = os.environ[env_var]
-                orig_type = type(self._settings[key])
-                
-                if orig_type == bool:
-                    self._settings[key] = value.lower() in ('true', 'yes', '1', 'y')
-                elif orig_type == int:
-                    self._settings[key] = int(value)
-                elif orig_type == float:
-                    self._settings[key] = float(value)
-                elif orig_type == list:
-                    self._settings[key] = json.loads(value)
-                else:
-                    self._settings[key] = value
-    
-    def _load_from_file(self, config_file: str) -> None:
+    @classmethod
+    def from_json(cls, json_file: str) -> 'TradingConfig':
         """
-        Load settings from a JSON config file.
+        Load configuration from a JSON file.
         
         Args:
-            config_file: Path to the JSON config file
+            json_file: Path to the JSON configuration file
+            
+        Returns:
+            A TradingConfig instance
         """
         try:
+            with open(json_file, 'r') as f:
+                config_dict = json.load(f)
+            
+            return cls.from_dict(config_dict)
+        except Exception as e:
+            logger.error(f"Failed to load configuration from {json_file}: {e}")
+            return cls()  # Return default configuration
+    
+    def to_dict(self) -> Dict:
+        """
+        Convert configuration to a dictionary.
+        
+        Returns:
+            A dictionary representation of the configuration
+        """
+        return {
+            field.name: getattr(self, field.name)
+            for field in self.__dataclass_fields__.values()
+        }
+    
+    def to_json(self, json_file: str) -> bool:
+        """
+        Save configuration to a JSON file.
+        
+        Args:
+            json_file: Path to save the JSON configuration file
+            
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(json_file), exist_ok=True)
+            
+            with open(json_file, 'w') as f:
+                json.dump(self.to_dict(), f, indent=2)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save configuration to {json_file}: {e}")
+            return False
+
+
+@dataclass
+class BacktestConfig(TradingConfig):
+    """Configuration settings for backtesting."""
+    
+    # Backtest-specific parameters
+    start_date: str = "2023-01-01"
+    end_date: str = "2023-12-31"
+    data_source: str = "csv"  # "csv", "database", "ibkr"
+    data_path: str = "historical_data/"
+    
+    # Simulation parameters
+    simulate_slippage: bool = True
+    simulate_commission: bool = True
+    simulate_latency: bool = False
+    latency_ms: int = 100  # Simulated latency in milliseconds
+    
+    # Results parameters
+    save_results: bool = True
+    results_path: str = "backtest_results/"
+    
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        super().__post_init__()
+        
+        # Always set paper_trading to True for backtesting
+        self.paper_trading = True
+
+
+def load_strategy_config(strategy_name: str, config_dir: str = 'src/config/strategy_configs') -> Dict:
+    """
+    Load configuration for a specific strategy.
+    
+    Args:
+        strategy_name: Name of the strategy
+        config_dir: Directory containing strategy configuration files
+        
+    Returns:
+        A dictionary containing strategy configuration
+    """
+    config_file = os.path.join(config_dir, f"{strategy_name}.json")
+    
+    try:
+        if os.path.exists(config_file):
             with open(config_file, 'r') as f:
-                config = json.load(f)
-            
-            # Update settings with values from the config file
-            for key, value in config.items():
-                if key in self._settings:
-                    self._settings[key] = value
-                else:
-                    # Add new settings not in the defaults
-                    self._settings[key] = value
-        except Exception as e:
-            print(f"Error loading config file: {e}")
-    
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get a setting value.
-        
-        Args:
-            key: The setting name
-            default: Default value if the setting doesn't exist
-            
-        Returns:
-            The setting value
-        """
-        return self._settings.get(key, default)
-    
-    def set(self, key: str, value: Any) -> None:
-        """
-        Set a setting value.
-        
-        Args:
-            key: The setting name
-            value: The new value
-        """
-        self._settings[key] = value
-    
-    def get_all(self) -> Dict[str, Any]:
-        """
-        Get all settings.
-        
-        Returns:
-            Dict[str, Any]: All settings
-        """
-        return self._settings.copy()
-    
-    def save_to_file(self, file_path: str) -> None:
-        """
-        Save current settings to a JSON file.
-        
-        Args:
-            file_path: Path to save the settings
-        """
-        try:
-            # Filter out non-serializable values
-            serializable_settings = {}
-            for key, value in self._settings.items():
-                # Skip non-serializable types
-                if isinstance(value, (str, int, float, bool, list, dict, tuple, type(None))):
-                    serializable_settings[key] = value
-            
-            with open(file_path, 'w') as f:
-                json.dump(serializable_settings, f, indent=4)
-                
-            print(f"Settings saved to {file_path}")
-        except Exception as e:
-            print(f"Error saving settings to file: {e}")
+                return json.load(f)
+        else:
+            logger.warning(f"Strategy configuration file not found: {config_file}")
+            return {}
+    except Exception as e:
+        logger.error(f"Failed to load strategy configuration: {e}")
+        return {}
 
 
-# Create a default settings instance
-default_settings = Settings()
+def save_strategy_config(strategy_name: str, config: Dict, config_dir: str = 'src/config/strategy_configs') -> bool:
+    """
+    Save configuration for a specific strategy.
+    
+    Args:
+        strategy_name: Name of the strategy
+        config: Strategy configuration dictionary
+        config_dir: Directory to save strategy configuration files
+        
+    Returns:
+        True if saved successfully, False otherwise
+    """
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(config_dir, exist_ok=True)
+        
+        config_file = os.path.join(config_dir, f"{strategy_name}.json")
+        
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        logger.info(f"Saved strategy configuration to {config_file}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save strategy configuration: {e}")
+        return False
 
-# Example of how to use the settings in other modules:
-# from config.settings import default_settings
-# log_level = default_settings.get('LOG_LEVEL')
+# Create a default configuration
+default_config = TradingConfig()
+
+# Create default_settings dictionary that includes all needed configurations
+default_settings = {
+    # IBKR connection settings
+    'IBKR_HOST': default_config.ibkr_host,
+    'IBKR_PORT': default_config.ibkr_port,
+    'IBKR_CLIENT_ID': default_config.ibkr_client_id,
+    
+    # Trading settings
+    'PAPER_TRADING': default_config.paper_trading,
+    'MAX_POSITIONS': default_config.max_positions,
+    'MAX_RISK_PER_TRADE': default_config.max_risk_per_trade,
+    'INITIAL_CAPITAL': default_config.initial_capital,
+    
+    # Logging settings
+    'LOG_LEVEL': 'INFO',
+    'LOG_FORMAT': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    'SYSTEM_LOG_FILE': 'logs/system/system.log',
+    'TRADE_LOG_FILE': 'logs/trades/trades.log',
+    
+    # Dashboard settings
+    'ENABLE_DASHBOARD': True,
+    'DASHBOARD_HOST': '0.0.0.0',
+    'DASHBOARD_PORT': 8050
+}
+
+# Expose the settings as a dictionary for backward compatibility
+settings = default_settings
+
+# You can also create a function to get the full config object
+def get_config():
+    """Returns the full TradingConfig object"""
+    return default_config
