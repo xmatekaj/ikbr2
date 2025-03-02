@@ -34,7 +34,7 @@ class HarvesterManager:
         default_config = {
             "enabled": True,
             "client_id": 10,  # Dedicated client ID for harvesting
-            "db_path": "sqlite:///historical_data.db",
+            "db_path": "sqlite:///E:/historical_data/market_data.db",
             "schedule_interval_hours": 24,
             "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"],
             "timeframes": [
@@ -76,6 +76,12 @@ class HarvesterManager:
         if not self.config.get("enabled", True):
             logger.info("Harvester is disabled in configuration")
             return False
+        
+        # Extract database path and ensure directory exists
+        db_path = self.config.get('db_path', "sqlite:///historical_data.db")
+        if db_path.startswith('sqlite:///'):
+            file_path = db_path.replace('sqlite:///', '')
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
         try:
             # Initialize harvester client

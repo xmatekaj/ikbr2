@@ -1,7 +1,7 @@
 {
     "enabled": true,
     "client_id": 10,
-    "db_path": "sqlite:///historical_data.db",
+    "db_path": "sqlite:///E:/historical_data/market_data.db",
     "pool_size": 5,
     "schedule_interval_hours": 24,
     "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"],
