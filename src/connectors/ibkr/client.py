@@ -92,6 +92,11 @@ class IBKRClient(IBKRWrapper, EClient):
             logger.warning("Already connected to IBKR")
             return
         
+         # Validate connection parameters
+        if self.host is None or self.port is None:
+            logger.error("Invalid connection parameters (host or port is None)")
+            return
+            
         logger.info(f"Connecting to IBKR at {self.host}:{self.port} with client ID {self.client_id}")
         
         # Connect to TWS/IB Gateway
@@ -129,7 +134,9 @@ class IBKRClient(IBKRWrapper, EClient):
     
     def disconnect_and_stop(self) -> None:
         """Disconnect from TWS/IB Gateway and stop the message processing thread."""
-        logger.info("Disconnecting from IBKR")
+        # Disable auto reconnect before disconnecting
+        old_auto_reconnect = self.auto_reconnect
+        self.auto_reconnect = False
         
         if self.connected:
             self.disconnect()
@@ -138,7 +145,10 @@ class IBKRClient(IBKRWrapper, EClient):
         # Wait for the connection thread to terminate
         if self.connection_thread and self.connection_thread.is_alive():
             self.connection_thread.join(timeout=2)
-    
+        
+        # Restore the auto_reconnect setting
+        self.auto_reconnect = old_auto_reconnect
+        
     # EWrapper method overrides for connection management
     def connectAck(self) -> None:
         """Called when connection is acknowledged."""
@@ -153,7 +163,7 @@ class IBKRClient(IBKRWrapper, EClient):
         logger.info("Connection to IBKR closed")
         
         # Attempt reconnection if enabled
-        if self.auto_reconnect:
+        if self.auto_reconnect and self.host is not None and self.port is not None:
             logger.info("Attempting to reconnect...")
             time.sleep(5)  # Wait before reconnecting
             self.connect_and_run()

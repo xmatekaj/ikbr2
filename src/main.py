@@ -21,6 +21,7 @@ from src.monitoring.performance_tracker import PerformanceTracker
 from src.monitoring.data_collector import DataCollector
 from src.monitoring.dashboard.app import Dashboard
 from src.monitoring.alerts.alert_manager import AlertManager
+from src.data.harvester_manager import HarvesterManager
 
 def setup_logging():
     """Setup logging configuration."""
@@ -128,6 +129,12 @@ def main():
         port = 7497  # Default port for TWS Paper Trading
         logger.info("Paper trading mode enabled")
     
+    if args.mode != 'backtest':
+        logger.info("Initializing data harvester")
+        harvester_manager = HarvesterManager()
+        harvester_manager.start()
+
+
     client_id = settings.get('IBKR_CLIENT_ID')
     
     # Test connection only if requested
@@ -185,7 +192,8 @@ def main():
             
         except Exception as e:
             logger.error(f"Error testing connection: {e}", exc_info=True)
-            
+        
+
         logger.info("Connection test completed")
         return
     
@@ -270,6 +278,9 @@ def main():
                 data_collector.stop()
             if 'alert_manager' in locals():
                 alert_manager.stop()
+            if 'harvester_manager' in locals():
+                logger.info("Stopping data harvester")
+                harvester_manager.stop()
             # The dashboard thread is a daemon thread, so it will terminate when the main thread exits
         except Exception as e:
             logger.error(f"Error shutting down monitoring system: {e}")

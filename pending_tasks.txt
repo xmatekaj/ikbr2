@@ -1,14 +1,3 @@
-Complete the Core Engine Implementation
-
-Implement engine.py in the core directory
-Develop the performance tracking system in performance.py
-
-
-Finalize Trading Logic
-
-Complete implementation of order types (market, limit, stop orders)
-Develop the trade_manager.py for high-level trade execution
-
 
 Strategy Development and Testing
 
