@@ -34,7 +34,9 @@ class HarvesterManager:
         default_config = {
             "enabled": True,
             "client_id": 10,  # Dedicated client ID for harvesting
-            "db_path": "sqlite:///E:/historical_data/market_data.db",
+            "db_path": default_settings.get('DB_CONNECTION_STRING', 
+                    "postgresql://username:password@localhost:5432/market_data"),
+            "pool_size": default_settings.get('DB_POOL_SIZE', 5),
             "schedule_interval_hours": 24,
             "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"],
             "timeframes": [

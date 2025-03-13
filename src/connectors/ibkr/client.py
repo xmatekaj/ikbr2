@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class IBKRWrapper(EWrapper):
     """Custom wrapper class to handle API version differences."""
     
-    def error(self, reqId: int, errorCode: int, errorString: str):
+    def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):
         """
         Error handling with correct signature for older API versions.
         This explicitly defines the method with 3 parameters plus self.
@@ -168,12 +168,9 @@ class IBKRClient(IBKRWrapper, EClient):
             time.sleep(5)  # Wait before reconnecting
             self.connect_and_run()
     
-    def error(self, reqId: int, errorCode: int, errorString: str):
-        """
-        Error handling method with correct signature for older API versions.
-        """
-        # Call the parent implementation
-        super().error(reqId, errorCode, errorString)
+    def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):
+        # Handle all parameters
+        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
     
     def nextValidId(self, order_id: int) -> None:
         """Called by TWS/IB Gateway with the next valid order ID."""

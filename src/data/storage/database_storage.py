@@ -11,24 +11,25 @@ from typing import Dict, List, Any, Optional
 import sqlalchemy as sa
 import pandas as pd
 
+
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, NUMERIC
+from sqlalchemy import MetaData, Table, Column, Integer, String, Float, Boolean, create_engine, text
+
+
 logger = logging.getLogger(__name__)
 
 class DataHarvester:
     """Harvests and stores historical market data from IBKR."""
     
-    def __init__(self, data_feed, db_path="sqlite:///historical_data.db", pool_size=5):
+    def __init__(self, data_feed, db_path="postgresql://username:password@localhost:5432/market_data", pool_size=5):
         """
         Initialize the data harvester with connection pooling.
         
         Args:
-            data_feed: IBKR data feed instance
             db_path: Database connection string
             pool_size: Size of the connection pool
         """
-        self.data_feed = data_feed
-        
-        # Create engine with connection pooling
-        self.engine = sa.create_engine(
+        self.engine = create_engine(
             db_path,
             pool_size=pool_size,          # Maximum number of connections
             pool_timeout=30,              # Seconds to wait before timeout
@@ -36,7 +37,7 @@ class DataHarvester:
             max_overflow=10               # Allow extra connections
         )
         
-        self.metadata = sa.MetaData()
+        self.metadata = MetaData()
         
         # Create tables if they don't exist
         self._create_tables()
@@ -50,23 +51,23 @@ class DataHarvester:
         """Create database tables with optimized structure for market data."""
         
         # Price data table - for OHLCV data
-        self.price_data = sa.Table(
+        self.price_data = Table(
             'price_data', self.metadata,
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('symbol', sa.String(20), nullable=False),
-            sa.Column('timeframe', sa.String(10), nullable=False),
-            sa.Column('timestamp', sa.DateTime, nullable=False),
-            sa.Column('open', sa.Float, nullable=False),
-            sa.Column('high', sa.Float, nullable=False),
-            sa.Column('low', sa.Float, nullable=False),
-            sa.Column('close', sa.Float, nullable=False),
-            sa.Column('volume', sa.BigInteger),
-            sa.Column('data_type', sa.String(20), nullable=False),
-            sa.Column('source', sa.String(20), default='IBKR'),
-            sa.Column('created_at', sa.DateTime, default=datetime.now),
-            sa.Column('updated_at', sa.DateTime, onupdate=datetime.now),
-            sa.Column('is_adjusted', sa.Boolean, default=False),
-            sa.Column('data_quality', sa.Float, default=1.0),  # Quality metric (0-1)
+            Column('id', Integer, primary_key=True),
+            Column('symbol', String(20), nullable=False),
+            Column('timeframe', String(10), nullable=False),
+            Column('timestamp', TIMESTAMP(timezone=True), nullable=False),
+            Column('open', NUMERIC(precision=19, scale=6), nullable=False),
+            Column('high', NUMERIC(precision=19, scale=6), nullable=False),
+            Column('low', NUMERIC(precision=19, scale=6), nullable=False),
+            Column('close', NUMERIC(precision=19, scale=6), nullable=False),
+            Column('volume', NUMERIC(precision=25, scale=6)),
+            Column('data_type', String(20), nullable=False),
+            Column('source', String(20), default='IBKR'),
+            Column('created_at', TIMESTAMP(timezone=True), default=datetime.now),
+            Column('updated_at', TIMESTAMP(timezone=True), onupdate=datetime.now),
+            Column('is_adjusted', Boolean, default=False),
+            Column('data_quality', Float, default=1.0),
             
             # Unique constraint to prevent duplicates
             sa.UniqueConstraint('symbol', 'timeframe', 'timestamp', 'data_type', name='uix_price_data'),
@@ -78,37 +79,65 @@ class DataHarvester:
         )
         
         # Symbols metadata table
-        self.symbols_meta = sa.Table(
+        self.symbols_meta = Table(
             'symbols_meta', self.metadata,
-            sa.Column('symbol', sa.String(20), primary_key=True),
-            sa.Column('name', sa.String(100)),
-            sa.Column('type', sa.String(20)),  # stock, forex, crypto, etc.
-            sa.Column('exchange', sa.String(20)),
-            sa.Column('currency', sa.String(10)),
-            sa.Column('first_date', sa.DateTime),  # First data point available
-            sa.Column('last_update', sa.DateTime),  # Last updated
-            sa.Column('update_count', sa.Integer, default=0)  # Count of updates
+            Column('symbol', String(20), primary_key=True),
+            Column('name', String(100)),
+            Column('type', String(20)),  # stock, forex, crypto, etc.
+            Column('exchange', String(20)),
+            Column('currency', String(10)),
+            Column('first_date', TIMESTAMP(timezone=True)),  # First data point available
+            Column('last_update', TIMESTAMP(timezone=True)),  # Last updated
+            Column('update_count', Integer, default=0),  # Count of updates
+            Column('metadata', JSONB)  # Additional metadata as JSON
         )
         
         # Data collection log
-        self.harvest_log = sa.Table(
+        self.harvest_log = Table(
             'harvest_log', self.metadata,
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('symbol', sa.String(20), nullable=False),
-            sa.Column('timeframe', sa.String(10), nullable=False),
-            sa.Column('data_type', sa.String(20), nullable=False),
-            sa.Column('start_time', sa.DateTime),
-            sa.Column('end_time', sa.DateTime),
-            sa.Column('records_processed', sa.Integer),
-            sa.Column('records_added', sa.Integer),
-            sa.Column('records_updated', sa.Integer),
-            sa.Column('status', sa.String(20)),  # success, partial, failed
-            sa.Column('error', sa.Text),
-            sa.Column('created_at', sa.DateTime, default=datetime.now)
+            Column('id', Integer, primary_key=True),
+            Column('symbol', String(20), nullable=False),
+            Column('timeframe', String(10), nullable=False),
+            Column('data_type', String(20), nullable=False),
+            Column('start_time', TIMESTAMP(timezone=True)),
+            Column('end_time', TIMESTAMP(timezone=True)),
+            Column('records_processed', Integer),
+            Column('records_added', Integer),
+            Column('records_updated', Integer),
+            Column('status', String(20)),  # success, partial, failed
+            Column('error', Text),
+            Column('created_at', TIMESTAMP(timezone=True), default=datetime.now)
         )
         
         # Create all tables
         self.metadata.create_all(self.engine)
+
+        # Set up TimescaleDB hypertable for time series data
+        with self.engine.connect() as conn:
+            # Check if TimescaleDB extension is installed
+            try:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"))
+                
+                # Convert price_data to hypertable 
+                conn.execute(text(
+                    "SELECT create_hypertable('price_data', 'timestamp', if_not_exists => TRUE);"
+                ))
+                
+                # Add compression policy (optional)
+                conn.execute(text(
+                    "SELECT add_compression_policy('price_data', INTERVAL '7 days', if_not_exists => TRUE);"
+                ))
+                
+                # Add retention policy (optional - adjust as needed for your data retention requirements)
+                conn.execute(text(
+                    "SELECT add_retention_policy('price_data', INTERVAL '5 years', if_not_exists => TRUE);"
+                ))
+                
+                logger.info("TimescaleDB extension configured successfully")
+            except Exception as e:
+                logger.error(f"Error setting up TimescaleDB: {e}")
+                logger.info("Continuing with standard PostgreSQL tables")
+
         logger.info("Database tables created or verified")
 
     def harvest_data(self, 
@@ -238,11 +267,11 @@ class DataHarvester:
                             "symbol": symbol,
                             "timeframe": bar_size,
                             "timestamp": timestamp,
-                            "open": bar['open'],
-                            "high": bar['high'],
-                            "low": bar['low'],
-                            "close": bar['close'],
-                            "volume": bar.get('volume', 0),
+                            "open": float(bar['open']),
+                            "high": float(bar['high']),
+                            "low": float(bar['low']),
+                            "close": float(bar['close']),
+                            "volume": float(bar.get('volume', 0)),
                             "data_type": data_type,
                             "source": "IBKR",
                             "created_at": datetime.now(),
@@ -286,7 +315,7 @@ class DataHarvester:
                     
                     # Update if this is older than what's stored
                     conn.execute(
-                        sa.text("""
+                        text("""
                             UPDATE symbols_meta
                             SET first_date = :new_date
                             WHERE symbol = :symbol
@@ -334,7 +363,7 @@ class DataHarvester:
                         )
                     )
                     # Need a new transaction since we rolled back
-                    conn.execute("COMMIT")
+                    conn.execute(text("COMMIT"))
                 except:
                     logger.error("Failed to update harvest log with error")
                 
@@ -353,17 +382,26 @@ class DataHarvester:
             
             # Handle different date formats
             if isinstance(bar['date'], str):
+                # Strip timezone information if present for consistent handling
+                date_str = bar['date']
+                timezone_parts = ["US/Eastern", "America/New_York", "US/Central", "US/Pacific"]
+                
+                for tz in timezone_parts:
+                    if tz in date_str:
+                        date_str = date_str.split(tz)[0].strip()
+                        break
+                
                 # YYYYMMDD format
-                if len(bar['date']) == 8 and bar['date'].isdigit():
-                    return datetime.strptime(bar['date'], '%Y%m%d')
+                if len(date_str) == 8 and date_str.isdigit():
+                    return datetime.strptime(date_str, '%Y%m%d')
                 
                 # YYYYMMDD HH:MM:SS format
-                if ' ' in bar['date'] and len(bar['date']) >= 17:
-                    return datetime.strptime(bar['date'], '%Y%m%d %H:%M:%S')
+                if ' ' in date_str and len(date_str) >= 17:
+                    return datetime.strptime(date_str, '%Y%m%d %H:%M:%S')
                 
                 # ISO format
-                if 'T' in bar['date'] or '-' in bar['date']:
-                    return datetime.fromisoformat(bar['date'].replace('Z', '+00:00'))
+                if 'T' in date_str or '-' in date_str:
+                    return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
             
             # Unix timestamp (either seconds or milliseconds)
             if isinstance(bar['date'], (int, float)):
