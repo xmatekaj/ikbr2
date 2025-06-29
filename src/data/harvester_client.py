@@ -29,10 +29,10 @@ class HarvesterClient:
         return cls._instance
     
     def __init__(self, 
-                 host: str = "127.0.0.1", 
-                 port: int = 7497,
-                 client_id: int = 10,  # Use a dedicated client ID
-                 db_path: str = "sqlite:///historical_data.db"):
+                host: str = "127.0.0.1", 
+                port: int = 7497,
+                client_id: int = 10,  # Use a dedicated client ID
+                db_path: str = "postgresql://username:password@localhost:5432/market_data"):
         """
         Initialize the harvester client.
         
@@ -42,6 +42,9 @@ class HarvesterClient:
             client_id: Client ID (use a unique ID different from trading)
             db_path: Database path
         """
+        # Validate database connection string
+        if not db_path.startswith('postgresql://'):
+            raise ValueError("TimescaleDB requires a PostgreSQL connection string")
         self.client = IBKRClient(host=host, port=port, client_id=client_id)
         self.data_feed = None
         self.harvester = None

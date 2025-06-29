@@ -246,20 +246,25 @@ class MarketDataInfoCollector:
         # Set our capture handler
         self.client.error = capture_error_handler
         
-        # Make the request
+        # First try real-time data
         try:
             self.client.reqMktData(req_id, contract, "", True, False, [])
             
             # Wait for response
             time.sleep(1.5)
             
-            # Cancel request
-            self.client.cancelMktData(req_id)
-            
-            # Check if we got any data
+            # Process the result
             has_data = False
             is_delayed = False
             errors = self._error_callbacks.get(req_id, [])
+            
+            # Check for real-time data
+            if req_id in getattr(self.data_feed, 'market_data', {}):
+                data = self.data_feed.market_data[req_id]
+                price = data.get('last_price')
+                
+                if price is not None:
+                    has_data = True
             
             # Check for subscription status in error messages
             for error in errors:
@@ -269,24 +274,38 @@ class MarketDataInfoCollector:
                 # Check for delayed data message
                 if "Delayed market data is available" in msg:
                     is_delayed = True
-                
+                    
+                    # Try again with delayed data
+                    self.client.reqMarketDataType(3)  # 3 = Delayed
+                    self.client.reqMktData(req_id, contract, "", True, False, [])
+                    
+                    # Wait for response
+                    time.sleep(1.5)
+                    
+                    # Check for delayed data
+                    if req_id in getattr(self.data_feed, 'market_data', {}):
+                        data = self.data_feed.market_data[req_id]
+                        price = data.get('last_price')
+                        
+                        if price is not None:
+                            has_data = True
+                    
+                    # Reset to real-time for subsequent tests
+                    self.client.reqMarketDataType(1)  # 1 = Real-time
+                    
                 # Specific errors that indicate no subscription
                 if code in [10, 200, 354, 10090]:
-                    return {
-                        "symbol": symbol,
-                        "exchange": exchange,
-                        "has_access": False,
-                        "is_delayed": is_delayed,
-                        "error": msg
-                    }
+                    if not has_data:  # Only report no access if we didn't get any data
+                        return {
+                            "symbol": symbol,
+                            "exchange": exchange,
+                            "has_access": False,
+                            "is_delayed": is_delayed,
+                            "error": msg
+                        }
             
-            # If no blocking errors, check if we have price data
-            if req_id in getattr(self.data_feed, 'market_data', {}):
-                data = self.data_feed.market_data[req_id]
-                price = data.get('last_price')
-                
-                if price is not None:
-                    has_data = True
+            # Cancel the request
+            self.client.cancelMktData(req_id)
             
             return {
                 "symbol": symbol,
@@ -493,6 +512,7 @@ def get_market_data_subscription_info(host="127.0.0.1", port=7497):
                 "delayed_subscriptions": sum(1 for c in categories.values() if c.get("delayed", False)),
                 "inactive_subscriptions": sum(1 for c in categories.values() if not c.get("active", False)),
                 "total_tick_types": len(info.get("tick_types", {})),
+                "delayed_data_available": any(c.get("delayed", False) for c in categories.values())
             },
             "details": {
                 "subscriptions": {},
@@ -513,6 +533,10 @@ def get_market_data_subscription_info(host="127.0.0.1", port=7497):
                 "tested_symbols": details.get("tested_symbols", []),
                 "exchanges": details.get("exchanges", [])
             }
+        
+        # Add recommendation about using delayed data
+        if not result["summary"]["active_subscriptions"] and result["summary"]["delayed_data_available"]:
+            result["recommendation"] = "No real-time market data subscriptions found, but delayed data is available. Use the --use-delayed-data flag."
         
         return result
     except Exception as e:

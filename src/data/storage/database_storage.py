@@ -8,12 +8,12 @@ import threading
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
+
 import sqlalchemy as sa
 import pandas as pd
-
-
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, NUMERIC
-from sqlalchemy import MetaData, Table, Column, Integer, String, Float, Boolean, create_engine, text
+from sqlalchemy import MetaData, Table, Column, Integer, String, Float, Boolean, Text, create_engine, text
+
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,10 @@ class DataHarvester:
             db_path: Database connection string
             pool_size: Size of the connection pool
         """
+        # Validate connection string to ensure it's TimescaleDB (PostgreSQL)
+        if not db_path.startswith('postgresql://'):
+            raise ValueError("TimescaleDB requires a PostgreSQL connection string (postgresql://)")
+        
         self.engine = create_engine(
             db_path,
             pool_size=pool_size,          # Maximum number of connections
@@ -112,10 +116,9 @@ class DataHarvester:
         # Create all tables
         self.metadata.create_all(self.engine)
 
-        # Set up TimescaleDB hypertable for time series data
         with self.engine.connect() as conn:
-            # Check if TimescaleDB extension is installed
             try:
+                # Create TimescaleDB extension
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"))
                 
                 # Convert price_data to hypertable 
@@ -123,12 +126,12 @@ class DataHarvester:
                     "SELECT create_hypertable('price_data', 'timestamp', if_not_exists => TRUE);"
                 ))
                 
-                # Add compression policy (optional)
+                # Add compression policy
                 conn.execute(text(
                     "SELECT add_compression_policy('price_data', INTERVAL '7 days', if_not_exists => TRUE);"
                 ))
                 
-                # Add retention policy (optional - adjust as needed for your data retention requirements)
+                # Add retention policy (adjust as needed for data retention requirements)
                 conn.execute(text(
                     "SELECT add_retention_policy('price_data', INTERVAL '5 years', if_not_exists => TRUE);"
                 ))
@@ -136,7 +139,7 @@ class DataHarvester:
                 logger.info("TimescaleDB extension configured successfully")
             except Exception as e:
                 logger.error(f"Error setting up TimescaleDB: {e}")
-                logger.info("Continuing with standard PostgreSQL tables")
+                raise ValueError("TimescaleDB setup failed. Make sure TimescaleDB is properly installed")
 
         logger.info("Database tables created or verified")
 
@@ -851,7 +854,7 @@ class DataHarvester:
 
     def optimize_database(self):
         """
-        Perform database optimization operations.
+        Perform TimescaleDB optimization operations.
         
         Returns:
             Dict with optimization results
@@ -863,29 +866,18 @@ class DataHarvester:
         
         with self.engine.connect() as conn:
             try:
-                # SQLite-specific optimizations
-                if 'sqlite' in str(self.engine.url):
-                    # Analyze tables
-                    conn.execute("ANALYZE")
-                    results["optimizations"].append({"type": "analyze", "status": "success"})
-                    
-                    # Vacuum database (reclaim space)
-                    conn.execute("VACUUM")
-                    results["optimizations"].append({"type": "vacuum", "status": "success"})
-                    
-                # PostgreSQL-specific optimizations
-                elif 'postgresql' in str(self.engine.url):
-                    # Analyze tables
-                    conn.execute("ANALYZE")
-                    results["optimizations"].append({"type": "analyze", "status": "success"})
-                    
-                    # Vacuum tables (reclaim space)
-                    conn.execute("VACUUM FULL")
-                    results["optimizations"].append({"type": "vacuum", "status": "success"})
-                    
-                    # Reindex
-                    conn.execute("REINDEX DATABASE current_database()")
-                    results["optimizations"].append({"type": "reindex", "status": "success"})
+                # TimescaleDB optimizations
+                # Analyze tables
+                conn.execute(text("ANALYZE"))
+                results["optimizations"].append({"type": "analyze", "status": "success"})
+                
+                # Vacuum tables (reclaim space)
+                conn.execute(text("VACUUM FULL"))
+                results["optimizations"].append({"type": "vacuum", "status": "success"})
+                
+                # Reindex
+                conn.execute(text("REINDEX DATABASE current_database()"))
+                results["optimizations"].append({"type": "reindex", "status": "success"})
                 
                 # Clean up old harvest logs (keep only last 1000)
                 try:
@@ -928,7 +920,7 @@ class DataHarvester:
 
     def backup_database(self, backup_path=None):
         """
-        Create a backup of the database.
+        Create a backup of the TimescaleDB database.
         
         Args:
             backup_path: Path for the backup file (optional)
@@ -936,8 +928,8 @@ class DataHarvester:
         Returns:
             Dict with backup results
         """
-        import shutil
-        import time
+        import subprocess
+        from urllib.parse import urlparse
         import os
         
         # Generate backup path if not provided
@@ -945,88 +937,54 @@ class DataHarvester:
             timestamp = time.strftime('%Y%m%d_%H%M%S')
             backup_dir = "backups"
             os.makedirs(backup_dir, exist_ok=True)
-            
-            if 'sqlite' in str(self.engine.url):
-                # For SQLite, we can copy the file directly
-                db_path = str(self.engine.url).replace('sqlite:///', '')
-                backup_path = os.path.join(backup_dir, f"db_backup_{timestamp}.sqlite")
-            else:
-                # For other databases, use SQL dump
-                backup_path = os.path.join(backup_dir, f"db_backup_{timestamp}.sql")
+            backup_path = os.path.join(backup_dir, f"db_backup_{timestamp}.sql")
         
         try:
-            if 'sqlite' in str(self.engine.url):
-                # For SQLite, copy the file
-                db_path = str(self.engine.url).replace('sqlite:///', '')
-                
-                # Ensure database is closed
-                self.engine.dispose()
-                
-                # Copy the file
-                shutil.copy2(db_path, backup_path)
-                
+            # For PostgreSQL/TimescaleDB, use pg_dump
+            parsed_url = urlparse(str(self.engine.url))
+            db_name = parsed_url.path.lstrip('/')
+            username = parsed_url.username
+            password = parsed_url.password
+            host = parsed_url.hostname
+            port = parsed_url.port or '5432'
+            
+            # Set environment for password
+            env = os.environ.copy()
+            if password:
+                env['PGPASSWORD'] = password
+            
+            # Run pg_dump
+            cmd = [
+                'pg_dump',
+                '-h', host,
+                '-p', str(port),
+                '-U', username,
+                '-F', 'c',  # Custom format (compressed)
+                '-f', backup_path,
+                db_name
+            ]
+            
+            process = subprocess.run(cmd, env=env, capture_output=True, text=True)
+            
+            if process.returncode != 0:
                 return {
-                    "status": "success",
-                    "backup_path": backup_path,
-                    "size_bytes": os.path.getsize(backup_path),
-                    "timestamp": datetime.now()
+                    "status": "failed",
+                    "error": process.stderr.strip()
                 }
             
-            elif 'postgresql' in str(self.engine.url):
-                # For PostgreSQL, use pg_dump (assuming it's installed)
-                import subprocess
-                from urllib.parse import urlparse
-                
-                parsed_url = urlparse(str(self.engine.url))
-                db_name = parsed_url.path.lstrip('/')
-                username = parsed_url.username
-                password = parsed_url.password
-                host = parsed_url.hostname
-                port = parsed_url.port or '5432'
-                
-                # Set environment for password
-                env = os.environ.copy()
-                if password:
-                    env['PGPASSWORD'] = password
-                
-                # Run pg_dump
-                cmd = [
-                    'pg_dump',
-                    '-h', host,
-                    '-p', str(port),
-                    '-U', username,
-                    '-F', 'c',  # Custom format (compressed)
-                    '-f', backup_path,
-                    db_name
-                ]
-                
-                process = subprocess.run(cmd, env=env, capture_output=True, text=True)
-                
-                if process.returncode != 0:
-                    return {
-                        "status": "failed",
-                        "error": process.stderr.strip()
-                    }
-                
-                return {
-                    "status": "success",
-                    "backup_path": backup_path,
-                    "size_bytes": os.path.getsize(backup_path),
-                    "timestamp": datetime.now()
-                }
-            
-            else:
-                return {
-                    "status": "error",
-                    "error": "Backup not supported for this database type"
-                }
-                
+            return {
+                "status": "success",
+                "backup_path": backup_path,
+                "size_bytes": os.path.getsize(backup_path),
+                "timestamp": datetime.now()
+            }
         except Exception as e:
             logger.error(f"Database backup error: {e}")
             return {
                 "status": "failed",
                 "error": str(e)
             }
+        
     def export_to_csv(self, symbol, timeframe, filepath=None, start_date=None, end_date=None):
         """
         Export market data to CSV file for backtesting.

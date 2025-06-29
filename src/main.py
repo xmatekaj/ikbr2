@@ -95,6 +95,53 @@ def parse_arguments():
                         action='store_true',
                         help='Enable verbose logging')
                         
+    parser.add_argument('-d', '--use-delayed-data',
+                       action='store_true',
+                       help='Use delayed market data when real-time is not available')
+                        
+    return parser.parse_args()
+
+"""
+Updates to src/main.py to handle delayed data.
+"""
+# Add the following imports (you already have most of them)
+import os
+import sys
+import time
+import signal
+import argparse
+import logging
+from logging.handlers import RotatingFileHandler
+import threading
+
+# Modification to add support for delayed data
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description='IBKR Trading Bot')
+    
+    parser.add_argument('-c', '--config', 
+                        help='Path to the configuration file')
+    
+    parser.add_argument('-m', '--mode', 
+                        choices=['live', 'paper', 'backtest'], 
+                        default='paper',
+                        help='Trading mode (live, paper, or backtest)')
+    
+    parser.add_argument('-s', '--strategy', 
+                        help='Strategy to use')
+    
+    parser.add_argument('-t', '--test-connection', 
+                        action='store_true',
+                        help='Test the connection to IBKR and exit')
+    
+    parser.add_argument('-v', '--verbose', 
+                        action='store_true',
+                        help='Enable verbose logging')
+                        
+    parser.add_argument('-d', '--use-delayed-data',
+                       action='store_true',
+                       help='Use delayed market data when real-time is not available')
+                        
     return parser.parse_args()
 
 def main():
@@ -132,15 +179,21 @@ def main():
     if args.mode != 'backtest':
         logger.info("Initializing data harvester")
         harvester_manager = HarvesterManager()
-        harvester_manager.start()
+        try:
+            harvester_manager.start()
+        except Exception as e:
+            logger.error(f"Error starting harvester manager: {e}")
+            logger.warning("Continuing without data harvester")
 
 
     client_id = settings.get('IBKR_CLIENT_ID')
     
-    # Test connection only if requested
     if args.test_connection:
         logger.info("Testing connection to IBKR")
         client = IBKRClient(host=host, port=port, client_id=client_id, auto_reconnect=False)
+        
+        # Import these here to ensure they're available in test connection mode
+        from src.connectors.ibkr.data_feed import IBKRDataFeed
         
         try:
             # Use a simple connection test without account data request
@@ -152,37 +205,35 @@ def main():
             
             if client.connected:
                 logger.info("Successfully connected to IBKR!")
-                logger.info("Initializing performance monitoring")
-                performance_tracker = PerformanceTracker()
-                data_collector = DataCollector(data_feed, order_manager)
-
-                # Start monitoring components
-                performance_tracker.start()
-                data_collector.start()
-
-                # Initialize alert system
-                alert_manager = AlertManager(data_collector, performance_tracker)
-                alert_manager.start()
-
-                # Start dashboard if enabled
-                if settings.get('ENABLE_DASHBOARD', False):
-                    dashboard_host = settings.get('DASHBOARD_HOST', '0.0.0.0')
-                    dashboard_port = settings.get('DASHBOARD_PORT', 8050)
-                    
-                    logger.info(f"Starting monitoring dashboard on {dashboard_host}:{dashboard_port}")
-                    
-                    # Create dashboard on a separate thread
-                    dashboard = Dashboard(data_collector, performance_tracker)
-                    dashboard_thread = threading.Thread(
-                        target=dashboard.start,
-                        args=(dashboard_host, dashboard_port, False),  # host, port, debug
-                        daemon=True
-                    )
-                    dashboard_thread.start()
-                    logger.info("Dashboard started")
+                
+                # Test market data with delayed data option
+                logger.info("Testing market data connection...")
+                data_feed = IBKRDataFeed(host=host, port=port, client_id=client_id+1, use_delayed_data=args.use_delayed_data)
+                data_feed.connect_and_run()
+                
+                # Try to get market data
+                test_symbol = "AAPL"
+                logger.info(f"Testing market data by getting price for {test_symbol}")
+                
+                price = data_feed.get_last_price(test_symbol)
+                if price:
+                    is_delayed = False
+                    for req_id, data in data_feed.market_data.items():
+                        if data['symbol'] == test_symbol:
+                            is_delayed = data.get('is_delayed', False)
+                            break
+                            
+                    data_type = "DELAYED" if is_delayed else "REAL-TIME"
+                    logger.info(f"Current {data_type} price of {test_symbol}: ${price}")
+                else:
+                    logger.warning(f"Could not get price for {test_symbol}")
+                
                 logger.info(f"Client version: {client.serverVersion()}")
                 logger.info(f"Server time: {client.twsConnectionTime()}")
                 logger.info("Connection test successful")
+                
+                # Clean up data feed
+                data_feed.disconnect_and_stop()
             else:
                 logger.error("Failed to connect to IBKR")
                 
@@ -193,7 +244,6 @@ def main():
         except Exception as e:
             logger.error(f"Error testing connection: {e}", exc_info=True)
         
-
         logger.info("Connection test completed")
         return
     
@@ -212,7 +262,14 @@ def main():
     from src.connectors.ibkr.data_feed import IBKRDataFeed
     from src.connectors.ibkr.order_manager import IBKROrderManager
 
-    data_feed = IBKRDataFeed(host=host, port=port, client_id=client_id)
+    # Initialize data feed with delayed data setting
+    data_feed = IBKRDataFeed(
+        host=host, 
+        port=port, 
+        client_id=client_id, 
+        use_delayed_data=args.use_delayed_data
+    )
+    
     order_manager = IBKROrderManager(host=host, port=port, client_id=client_id+1)
     
     try:
@@ -238,9 +295,18 @@ def main():
         test_symbol = "AAPL"
         logger.info(f"Testing market data by getting price for {test_symbol}")
         
+        # Try to get data
         price = data_feed.get_last_price(test_symbol)
         if price:
-            logger.info(f"Current price of {test_symbol}: ${price}")
+            # Check if we're using delayed data
+            is_delayed = False
+            for req_id, data in data_feed.market_data.items():
+                if data['symbol'] == test_symbol:
+                    is_delayed = data.get('is_delayed', False)
+                    break
+                    
+            data_type = "DELAYED" if is_delayed else "REAL-TIME"
+            logger.info(f"Current {data_type} price of {test_symbol}: ${price}")
         else:
             logger.warning(f"Could not get price for {test_symbol}")
         

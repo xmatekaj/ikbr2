@@ -248,10 +248,10 @@ default_settings = {
     'DB_HOST': 'localhost',
     'DB_PORT': 5432,
     'DB_NAME': 'market_data',
-    'DB_USER': 'username',
-    'DB_PASSWORD': 'password',
+    'DB_USER': 'user_bot',
+    'DB_PASSWORD': 'user_bot',
     'DB_POOL_SIZE': 5,
-    'DB_CONNECTION_STRING': 'postgresql://username:password@localhost:5432/market_data'
+    'DB_CONNECTION_STRING': 'postgresql://user_bot:user_bot@localhost:5432/market_data'
 }
 
 # Expose the settings as a dictionary for backward compatibility

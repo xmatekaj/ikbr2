@@ -34,9 +34,7 @@ class HarvesterManager:
         default_config = {
             "enabled": True,
             "client_id": 10,  # Dedicated client ID for harvesting
-            "db_path": default_settings.get('DB_CONNECTION_STRING', 
-                    "postgresql://username:password@localhost:5432/market_data"),
-            "pool_size": default_settings.get('DB_POOL_SIZE', 5),
+            "db_path": "postgresql://username:password@localhost:5432/market_data",
             "schedule_interval_hours": 24,
             "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"],
             "timeframes": [
@@ -50,6 +48,9 @@ class HarvesterManager:
             if os.path.exists(self.config_path):
                 with open(self.config_path, 'r') as f:
                     config = json.load(f)
+                    if 'db_path' in config and not config['db_path'].startswith('postgresql://'):
+                        logger.warning("Non-PostgreSQL connection string found. Enforcing TimescaleDB.")
+                        config['db_path'] = default_config['db_path']
                     # Merge with defaults
                     for key, value in default_config.items():
                         if key not in config:
@@ -86,6 +87,10 @@ class HarvesterManager:
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
         try:
+            db_path = self.config.get('db_path', "")
+            if not db_path.startswith('postgresql://'):
+                logger.error("TimescaleDB requires a PostgreSQL connection string")
+                return False
             # Initialize harvester client
             self.harvester_client = HarvesterClient.get_instance(
                 host=default_settings.get('IBKR_HOST', '127.0.0.1'),
@@ -133,6 +138,9 @@ class HarvesterManager:
     
     def update_config(self, new_config):
         """Update harvester configuration."""
+        if 'db_path' in new_config and not new_config['db_path'].startswith('postgresql://'):
+            logger.warning("Ignoring non-PostgreSQL connection string in config update")
+            new_config.pop('db_path')
         self.config.update(new_config)
         self._save_config()
         
