@@ -22,11 +22,29 @@ logger = logging.getLogger(__name__)
 class IBKRWrapper(EWrapper):
     """Custom wrapper class to handle API version differences."""
     
-    def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):
+    def error(self, *args, **kwargs):
         """
-        Error handling with correct signature for older API versions.
-        This explicitly defines the method with 3 parameters plus self.
+        Error handling with flexible signature to support different API versions.
+        Different IBAPI versions have different signatures:
+        - Old: error(reqId, errorCode, errorString)
+        - New: error(reqId, errorCode, errorString, advancedOrderRejectJson)  
+        - Newer: error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
         """
+        # Handle different argument patterns
+        if len(args) == 3:
+            # Old API: (reqId, errorCode, errorString)
+            reqId, errorCode, errorString = args
+        elif len(args) == 4:
+            # Newer API: (reqId, errorCode, errorString, advancedOrderRejectJson)
+            reqId, errorCode, errorString, advancedOrderRejectJson = args
+        elif len(args) == 5:
+            # Latest API: (reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+            reqId, errorTime, errorCode, errorString, advancedOrderRejectJson = args
+        else:
+            # Fallback - log what we got
+            logger.error(f"Unexpected error method signature: args={args}, kwargs={kwargs}")
+            return
+        
         # Some error codes indicate normal events rather than actual errors
         normal_errors = {2104, 2106, 2158}  # Connection successful, connection broken, etc.
         
@@ -168,9 +186,10 @@ class IBKRClient(IBKRWrapper, EClient):
             time.sleep(5)  # Wait before reconnecting
             self.connect_and_run()
     
-    def error(self, reqId, errorTime, errorCode, errorString, advancedOrderRejectJson=""):
-        # Handle all parameters
-        super().error(reqId, errorTime, errorCode, errorString, advancedOrderRejectJson)
+    def error(self, *args, **kwargs):
+        """Handle error with flexible signature for different API versions."""
+        # Call the wrapper's error method
+        super().error(*args, **kwargs)
     
     def nextValidId(self, order_id: int) -> None:
         """Called by TWS/IB Gateway with the next valid order ID."""
@@ -318,38 +337,3 @@ class IBKRClient(IBKRWrapper, EClient):
         self.response_events.pop(req_id)
         
         return result
-
-
-# Example usage
-if __name__ == "__main__":
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Create and connect the client
-    client = IBKRClient()
-    
-    try:
-        client.connect_and_run()
-        
-        # Request account information
-        req_id = client.request_account_summary()
-        
-        # Wait for the result
-        time.sleep(5)
-        
-        # Get the result
-        account_summary = client.get_account_summary_result(req_id)
-        print("\nAccount Summary:")
-        for item in account_summary:
-            print(f"{item['tag']}: {item['value']} {item['currency']}")
-            
-        # Place a test order (commented out for safety)
-        # order_id = client.place_market_order("AAPL", 1, "BUY")
-        # print(f"\nPlaced order with ID: {order_id}")
-        
-        # Keep the program running to receive responses
-        input("\nPress Enter to exit...\n")
-        
-    finally:
-        # Disconnect when done
-        client.disconnect_and_stop()

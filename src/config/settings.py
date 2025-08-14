@@ -1,263 +1,162 @@
 """
-Global configuration settings for the IKBR Trader Bot.
-
-This module provides configuration classes and default settings for the trading system.
+Settings module for backward compatibility.
+This module provides compatibility with the old settings system
+while redirecting to the new centralized configuration.
 """
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union
-import os
-import json
 import logging
+from .config_manager import get_config
 
 logger = logging.getLogger(__name__)
 
+# Get the configuration manager instance
+config_manager = get_config()
 
-@dataclass
+# Legacy TradingConfig class for backward compatibility
 class TradingConfig:
-    """Configuration settings for trading."""
+    """Legacy TradingConfig class that now uses the centralized configuration."""
     
-    # IBKR connection parameters
-    ibkr_host: str = "127.0.0.1"
-    ibkr_port: int = 7497  # 7497 for TWS paper trading, 7496 for TWS live, 4002 for Gateway paper, 4001 for Gateway live
-    ibkr_client_id: int = 1
-    
-    # Trading parameters
-    paper_trading: bool = True
-    max_positions: int = 10
-    max_risk_per_trade: float = 0.02  # Maximum risk per trade as a fraction of account value
-    initial_capital: float = 100000.0
-    
-    # System parameters
-    engine_loop_interval: float = 1.0  # Seconds between engine loop iterations
-    
-    # Additional parameters with default values
-    commission_per_share: float = 0.005  # IBKR commission per share (simplified)
-    minimum_commission: float = 1.0      # Minimum commission per trade
-    slippage_model: str = "fixed"        # "fixed", "percentage", or "custom"
-    slippage_value: float = 0.01         # Fixed slippage in dollars or percentage
-    market_data_type: str = "real-time"  # "real-time" or "delayed"
-    
-    # Advanced parameters
-    reconnect_attempts: int = 3
-    reconnect_wait_time: int = 5  # Seconds to wait between reconnect attempts
-    order_timeout: int = 30       # Seconds to wait for order acknowledgment
-    
-    # Strategy-specific parameters
-    strategy_params: Dict[str, Dict] = field(default_factory=dict)
-    
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        # Validate trading values
-        if self.max_risk_per_trade <= 0 or self.max_risk_per_trade > 1:
-            logger.warning(f"Invalid max_risk_per_trade: {self.max_risk_per_trade}. Setting to default 0.02")
-            self.max_risk_per_trade = 0.02
+    def __init__(self, **kwargs):
+        """Initialize with values from centralized config or provided kwargs."""
+        self.config_manager = get_config()
         
-        if self.initial_capital <= 0:
-            logger.warning(f"Invalid initial_capital: {self.initial_capital}. Setting to default 100000.0")
-            self.initial_capital = 100000.0
+        # IBKR connection parameters
+        ibkr_config = self.config_manager.get_section('ibkr')
+        conn_info = self.config_manager.get_ibkr_connection_info()
         
-        if self.max_positions <= 0:
-            logger.warning(f"Invalid max_positions: {self.max_positions}. Setting to default 10")
-            self.max_positions = 10
+        self.ibkr_host = kwargs.get('ibkr_host', conn_info['host'])
+        self.ibkr_port = kwargs.get('ibkr_port', conn_info['port'])
+        self.ibkr_client_id = kwargs.get('ibkr_client_id', conn_info['client_id'])
         
-        # Validate system parameters
-        if self.engine_loop_interval <= 0:
-            logger.warning(f"Invalid engine_loop_interval: {self.engine_loop_interval}. Setting to default 1.0")
-            self.engine_loop_interval = 1.0
+        # Trading parameters
+        trading_config = self.config_manager.get_section('trading')
+        self.paper_trading = kwargs.get('paper_trading', trading_config.get('paper_trading', True))
+        self.max_positions = kwargs.get('max_positions', trading_config.get('max_positions', 10))
+        self.max_risk_per_trade = kwargs.get('max_risk_per_trade', trading_config.get('max_risk_per_trade', 0.02))
+        self.initial_capital = kwargs.get('initial_capital', trading_config.get('initial_capital', 100000.0))
+        
+        # System parameters
+        self.engine_loop_interval = kwargs.get('engine_loop_interval', 1.0)
+        
+        # Additional parameters
+        self.commission_per_share = kwargs.get('commission_per_share', trading_config.get('commission', {}).get('per_share', 0.005))
+        self.minimum_commission = kwargs.get('minimum_commission', trading_config.get('commission', {}).get('minimum', 1.0))
+        
+    @classmethod
+    def from_dict(cls, config_dict):
+        """Create a TradingConfig from a dictionary."""
+        return cls(**config_dict)
     
     @classmethod
-    def from_dict(cls, config_dict: Dict) -> 'TradingConfig':
-        """
-        Create a TradingConfig from a dictionary.
-        
-        Args:
-            config_dict: Configuration dictionary
-            
-        Returns:
-            A TradingConfig instance
-        """
-        # Filter out keys that are not fields in TradingConfig
-        valid_keys = {field.name for field in cls.__dataclass_fields__.values()}
-        filtered_dict = {k: v for k, v in config_dict.items() if k in valid_keys}
-        
-        return cls(**filtered_dict)
-    
-    @classmethod
-    def from_json(cls, json_file: str) -> 'TradingConfig':
-        """
-        Load configuration from a JSON file.
-        
-        Args:
-            json_file: Path to the JSON configuration file
-            
-        Returns:
-            A TradingConfig instance
-        """
+    def from_json(cls, json_file):
+        """Load configuration from a JSON file."""
         try:
+            import json
             with open(json_file, 'r') as f:
                 config_dict = json.load(f)
-            
             return cls.from_dict(config_dict)
         except Exception as e:
             logger.error(f"Failed to load configuration from {json_file}: {e}")
-            return cls()  # Return default configuration
+            return cls()
     
-    def to_dict(self) -> Dict:
-        """
-        Convert configuration to a dictionary.
-        
-        Returns:
-            A dictionary representation of the configuration
-        """
+    def to_dict(self):
+        """Convert configuration to a dictionary."""
         return {
-            field.name: getattr(self, field.name)
-            for field in self.__dataclass_fields__.values()
+            'ibkr_host': self.ibkr_host,
+            'ibkr_port': self.ibkr_port,
+            'ibkr_client_id': self.ibkr_client_id,
+            'paper_trading': self.paper_trading,
+            'max_positions': self.max_positions,
+            'max_risk_per_trade': self.max_risk_per_trade,
+            'initial_capital': self.initial_capital,
+            'engine_loop_interval': self.engine_loop_interval,
+            'commission_per_share': self.commission_per_share,
+            'minimum_commission': self.minimum_commission
         }
-    
-    def to_json(self, json_file: str) -> bool:
-        """
-        Save configuration to a JSON file.
-        
-        Args:
-            json_file: Path to save the JSON configuration file
-            
-        Returns:
-            True if saved successfully, False otherwise
-        """
-        try:
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(json_file), exist_ok=True)
-            
-            with open(json_file, 'w') as f:
-                json.dump(self.to_dict(), f, indent=2)
-            
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save configuration to {json_file}: {e}")
-            return False
 
-
-@dataclass
+# Legacy BacktestConfig class
 class BacktestConfig(TradingConfig):
-    """Configuration settings for backtesting."""
+    """Legacy BacktestConfig class for backward compatibility."""
     
-    # Backtest-specific parameters
-    start_date: str = "2023-01-01"
-    end_date: str = "2023-12-31"
-    data_source: str = "csv"  # "csv", "database", "ibkr"
-    data_path: str = "historical_data/"
-    
-    # Simulation parameters
-    simulate_slippage: bool = True
-    simulate_commission: bool = True
-    simulate_latency: bool = False
-    latency_ms: int = 100  # Simulated latency in milliseconds
-    
-    # Results parameters
-    save_results: bool = True
-    results_path: str = "backtest_results/"
-    
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        super().__post_init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         
-        # Always set paper_trading to True for backtesting
+        # Backtest-specific parameters from centralized config
+        backtest_config = self.config_manager.get_section('backtesting')
+        
+        self.start_date = kwargs.get('start_date', backtest_config.get('default_start_date', '2023-01-01'))
+        self.end_date = kwargs.get('end_date', backtest_config.get('default_end_date', '2023-12-31'))
+        self.data_source = kwargs.get('data_source', backtest_config.get('data_source', 'database'))
+        self.data_path = kwargs.get('data_path', self.config_manager.get('paths.historical_data', 'historical_data/'))
+        
+        self.simulate_slippage = kwargs.get('simulate_slippage', backtest_config.get('simulate_slippage', True))
+        self.simulate_commission = kwargs.get('simulate_commission', backtest_config.get('simulate_commission', True))
+        self.simulate_latency = kwargs.get('simulate_latency', False)
+        
+        # Always paper trading for backtests
         self.paper_trading = True
 
-
-def load_strategy_config(strategy_name: str, config_dir: str = 'src/config/strategy_configs') -> Dict:
-    """
-    Load configuration for a specific strategy.
+# Create default_settings dictionary for backward compatibility
+def _create_default_settings():
+    """Create the default_settings dictionary from the centralized configuration."""
+    ibkr_conn = config_manager.get_ibkr_connection_info()
+    log_config = config_manager.get_log_config()
+    trading_config = config_manager.get_section('trading')
+    monitoring_config = config_manager.get_section('monitoring')
+    db_config = config_manager.get_section('database')
     
-    Args:
-        strategy_name: Name of the strategy
-        config_dir: Directory containing strategy configuration files
+    return {
+        # IBKR connection settings
+        'IBKR_HOST': ibkr_conn['host'],
+        'IBKR_PORT': ibkr_conn['port'],
+        'IBKR_CLIENT_ID': ibkr_conn['client_id'],
         
-    Returns:
-        A dictionary containing strategy configuration
-    """
-    config_file = os.path.join(config_dir, f"{strategy_name}.json")
-    
-    try:
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                return json.load(f)
-        else:
-            logger.warning(f"Strategy configuration file not found: {config_file}")
-            return {}
-    except Exception as e:
-        logger.error(f"Failed to load strategy configuration: {e}")
-        return {}
-
-
-def save_strategy_config(strategy_name: str, config: Dict, config_dir: str = 'src/config/strategy_configs') -> bool:
-    """
-    Save configuration for a specific strategy.
-    
-    Args:
-        strategy_name: Name of the strategy
-        config: Strategy configuration dictionary
-        config_dir: Directory to save strategy configuration files
+        # Trading settings
+        'PAPER_TRADING': trading_config.get('paper_trading', True),
+        'MAX_POSITIONS': trading_config.get('max_positions', 10),
+        'MAX_RISK_PER_TRADE': trading_config.get('max_risk_per_trade', 0.02),
+        'INITIAL_CAPITAL': trading_config.get('initial_capital', 100000.0),
         
-    Returns:
-        True if saved successfully, False otherwise
-    """
-    try:
-        # Create directory if it doesn't exist
-        os.makedirs(config_dir, exist_ok=True)
+        # Logging settings
+        'LOG_LEVEL': log_config.get('level', 'INFO'),
+        'LOG_FORMAT': log_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
+        'SYSTEM_LOG_FILE': os.path.join(log_config.get('paths', {}).get('system_logs', 'logs/system/'), 'system.log'),
+        'TRADE_LOG_FILE': os.path.join(log_config.get('paths', {}).get('trade_logs', 'logs/trades/'), 'trades.log'),
         
-        config_file = os.path.join(config_dir, f"{strategy_name}.json")
-        
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        logger.info(f"Saved strategy configuration to {config_file}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to save strategy configuration: {e}")
-        return False
+        # Dashboard settings
+        'ENABLE_DASHBOARD': monitoring_config.get('dashboard', {}).get('enabled', True),
+        'DASHBOARD_HOST': monitoring_config.get('dashboard', {}).get('host', '0.0.0.0'),
+        'DASHBOARD_PORT': monitoring_config.get('dashboard', {}).get('port', 8050),
 
-# Create a default configuration
-default_config = TradingConfig()
+        # Database settings
+        'DB_HOST': 'localhost',  # Extracted from connection string if needed
+        'DB_PORT': 5432,
+        'DB_NAME': 'market_data',
+        'DB_USER': 'user_bot',
+        'DB_PASSWORD': 'user_bot',
+        'DB_POOL_SIZE': db_config.get('pool_size', 5),
+        'DB_CONNECTION_STRING': config_manager.get_database_connection()
+    }
 
-# Create default_settings dictionary that includes all needed configurations
-default_settings = {
-    # IBKR connection settings
-    'IBKR_HOST': default_config.ibkr_host,
-    'IBKR_PORT': default_config.ibkr_port,
-    'IBKR_CLIENT_ID': default_config.ibkr_client_id,
-    
-    # Trading settings
-    'PAPER_TRADING': default_config.paper_trading,
-    'MAX_POSITIONS': default_config.max_positions,
-    'MAX_RISK_PER_TRADE': default_config.max_risk_per_trade,
-    'INITIAL_CAPITAL': default_config.initial_capital,
-    
-    # Logging settings
-    'LOG_LEVEL': 'INFO',
-    'LOG_FORMAT': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    'SYSTEM_LOG_FILE': 'logs/system/system.log',
-    'TRADE_LOG_FILE': 'logs/trades/trades.log',
-    
-    # Dashboard settings
-    'ENABLE_DASHBOARD': True,
-    'DASHBOARD_HOST': '0.0.0.0',
-    'DASHBOARD_PORT': 8050,
+# Import os for path operations
+import os
 
-    # TimescaleDB connection settings
-    'DB_HOST': 'localhost',
-    'DB_PORT': 5432,
-    'DB_NAME': 'market_data',
-    'DB_USER': 'user_bot',
-    'DB_PASSWORD': 'user_bot',
-    'DB_POOL_SIZE': 5,
-    'DB_CONNECTION_STRING': 'postgresql://user_bot:user_bot@localhost:5432/market_data'
-}
-
-# Expose the settings as a dictionary for backward compatibility
+# Create the default_settings and settings dictionaries
+default_settings = _create_default_settings()
 settings = default_settings
 
-# You can also create a function to get the full config object
+# Create default config instance for backward compatibility
+default_config = TradingConfig()
+
+# Legacy functions for backward compatibility
+def load_strategy_config(strategy_name, config_dir=None):
+    """Load configuration for a specific strategy."""
+    return config_manager.get_strategy_config(strategy_name)
+
+def save_strategy_config(strategy_name, config, config_dir=None):
+    """Save configuration for a specific strategy."""
+    config_manager.update_config(f'strategies.{strategy_name}', config)
+    return config_manager.save_config()
+
 def get_config():
-    """Returns the full TradingConfig object"""
-    return default_config
+    """Returns the configuration manager (updated for new system)."""
+    return config_manager
